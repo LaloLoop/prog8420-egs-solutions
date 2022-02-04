@@ -23,3 +23,20 @@ Some important business rules the program handles are:
 * Negative balance are not permitted.
 * Multiple accounts can be created by the running user.
 
+## Running the tests
+
+To run the current tests, execute the following command
+
+```shell
+python -m unittest discover
+```
+
+Python 3.8.9 is being used for the development.
+
+## Running the main application
+
+The main app can be executed with the following command.
+
+```shell
+python main.py
+```

@@ -49,7 +49,6 @@ class TestBank(TestCase):
         self.assertNotEqual(account1.id, account2.id)
 
 
-
 class TestAccount(TestCase):
     def test_deposit(self):
         account = Account()
