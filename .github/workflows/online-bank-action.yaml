@@ -6,8 +6,12 @@ name: online-bank
 on:
   push:
     branches: [ main ]
+    paths:
+    - 'online-bank/**.py'
   pull_request:
     branches: [ main ]
+    paths:
+    - 'online-bank/**.py'
 
 jobs:
 
