@@ -13,8 +13,6 @@ jobs:
 
   build:
 
-    needs: check
-    if: needs.check.outputs.run_job == 'true'
     runs-on: ubuntu-latest
 
     defaults:
