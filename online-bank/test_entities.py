@@ -22,6 +22,13 @@ class TestBank(TestCase):
         self.assertTrue(created_user.id in bank.users_by_id)
         self.assertEqual(bank.users_by_id[created_user.id], created_user)
 
+    def test_create_user_with_fullname(self):
+        b = Bank()
+        created_user = b.create_user('Samuel', 'Jackson')
+
+        self.assertEqual(created_user.name, 'Samuel')
+        self.assertEqual(created_user.last_name, 'Jackson')
+
     def test_next_id(self):
         bank = Bank()
 
