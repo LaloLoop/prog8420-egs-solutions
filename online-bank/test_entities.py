@@ -104,7 +104,8 @@ class TestUser(TestCase):
         account1 = Account(account_id=1)
         account2 = Account(account_id=2)
 
-        bank.create_account.side_effect = [account1, account2]
+        user_accounts = [account1, account2]
+        bank.create_account.side_effect = user_accounts
 
         account1 = user.create_account(bank)
         account2 = user.create_account(bank)
@@ -114,3 +115,4 @@ class TestUser(TestCase):
         self.assertNotEqual(account1, account2)
         self.assertIsNot(account1, account2)
         self.assertNotEqual(account1.id, account2.id)
+        self.assertEqual(user_accounts, user.accounts)

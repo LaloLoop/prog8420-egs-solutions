@@ -36,6 +36,9 @@ def bank_reducer(state, action):
 
     if act_type == 'init':
         return {**state, 'bank': Bank()}
+    elif act_type == 'account/create':
+        state['session'].create_account(state['bank'])
+        return {**state, 'account_created': True}
 
     return state
 
@@ -50,8 +53,19 @@ def exit_reducer(state, action):
 
     return state
 
+
+def account_created(state, action):
+    act_type = action['type']
+
+    if act_type == 'account/create':
+        return state
+
+    return {**state, 'account_created': False}
+
+
 STATE_MAPPING = {
     'bank': bank_reducer,
     'session': user_reducer,
-    'exit': exit_reducer
+    'exit': exit_reducer,
+    'account_created': account_created
 }

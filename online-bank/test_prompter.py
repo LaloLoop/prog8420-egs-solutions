@@ -159,3 +159,25 @@ class TestMenuPrompter(TestCase):
             'type': 'program/terminate'
         })
 
+    @patch.multiple('prompters', input=DEFAULT, print=DEFAULT, sleep=DEFAULT, create=True)
+    def test_menu_create_account_selected(self, input, print, sleep):
+        input.side_effect = ['1']
+
+        user = Mock(spec=User)
+        user.accounts = []
+        state = {
+            'session': user
+        }
+        store = Mock(spec=Store)
+
+        prompter = MenuPrompter(store)
+        done = prompter.prompt(state)
+
+        self.assertTrue(done)
+
+        print.assert_called_once_with("Creating account...")
+        sleep.assert_called_with(1)
+
+        store.dispatch.assert_called_with({
+            'type': 'account/create'
+        })

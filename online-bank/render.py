@@ -19,7 +19,18 @@ class MenuRenderer(Renderer):
             return "\nPlease create a user to begin.\n"
         elif len(session.accounts) == 0:
             return "Your user is setup and you can now create a Bank account!\n1. Create account\n2. Exit\n"
+        elif len(session.accounts) > 0:
+            return "\nHow may I help you?\n1. Deposit\n2. Withdraw\n3. Transfer\n4. Create account\n5. Exit\nPlease " \
+                   "select an option "
 
+        return ""
+
+
+class AccountCreatedRenderer(Renderer):
+    def render(self, state):
+        if state['account_created']:
+            account = state['session'].accounts[-1]
+            return f"Nice, here's your virtual account\n| Acct No. | Balance |\n| {account.id} | {account.balance} |"
         return ""
 
 
@@ -31,7 +42,11 @@ class AccountsRenderer(Renderer):
 class MainRenderer(Renderer):
     def __init__(self, renderers=None):
         if renderers is None:
-            renderers = [WelcomeRenderer(), MenuRenderer()]
+            renderers = [
+                WelcomeRenderer(),
+                AccountCreatedRenderer(),
+                MenuRenderer(),
+            ]
 
         self.renderers = renderers
 

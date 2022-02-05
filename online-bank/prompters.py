@@ -1,3 +1,6 @@
+from time import sleep
+
+
 class Prompter:
     def prompt(self, state):
         result = input("What's on your mind?")
@@ -52,15 +55,20 @@ class MenuPrompter(Prompter):
         while True:
             value = input("> ")
 
-            if user is not None and len(user.accounts) == 0 and value == "2":
-                print("This is an in memory Bank, your data will be lost, are you sure?")
-                if input("(y/N)> ") == "y":
-                    self.store.dispatch({'type': 'program/terminate'})
-                    print("Ok, hope you enjoyed your virtual 💸. Bye! 👋🏼")
-                break
-            else:
-                print("Sorry, I cannot help you with that at the moment, please choose another option")
-                continue
+            if user is not None and len(user.accounts) == 0:
+                if value == "2":
+                    print("This is an in memory Bank, your data will be lost, are you sure?")
+                    if input("(y/N)> ") == "y":
+                        self.store.dispatch({'type': 'program/terminate'})
+                        print("Ok, hope you enjoyed your virtual 💸. Bye! 👋🏼")
+                    break
+                elif value == "1":
+                    self.store.dispatch({'type': 'account/create'})
+                    print("Creating account...")
+                    sleep(1)
+                    break
+
+            print("Sorry, I cannot help you with that at the moment, please choose another option")
 
         return True
 

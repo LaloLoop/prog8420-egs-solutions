@@ -1,7 +1,8 @@
 from unittest import TestCase
+from unittest.mock import Mock
 
 from entities import User, Account
-from render import Renderer, WelcomeRenderer, MenuRenderer, MainRenderer
+from render import Renderer, WelcomeRenderer, MenuRenderer, MainRenderer, AccountCreatedRenderer
 
 
 class TestRenderer(TestCase):
@@ -39,10 +40,29 @@ class TestMenuRenderer(TestCase):
 
         state = {'session': u}
 
-        menu_rendered = MenuRenderer()
-        result = menu_rendered.render(state)
+        menu_renderer = MenuRenderer()
+        result = menu_renderer.render(state)
 
-        self.assertEqual("Your user is setup and you can now create a Bank account!\n1. Create account\n2. Exit\n", result)
+        self.assertEqual(
+            "Your user is setup and you can now create a Bank account!\n1. Create account\n2. Exit\n",
+            result
+        )
+
+    def test_render_account_available(self):
+        u = Mock(spec=User)
+        account = Mock(spec=Account)
+        u.accounts = [account]
+
+        state = {'session': u}
+
+        renderer = MenuRenderer()
+        result = renderer.render(state)
+
+        self.assertEqual(
+            "\nHow may I help you?\n1. Deposit\n2. Withdraw\n3. Transfer\n4. Create account\n5. Exit\nPlease select an "
+            "option ",
+            result
+        )
 
 
 class TestMainRenderer(TestCase):
@@ -63,3 +83,30 @@ class TestMainRenderer(TestCase):
         mr = MainRenderer(renderers=[Renderer1(), Renderer2()])
 
         self.assertEqual("\nHallo, Eduardo!\n", mr.render(state))
+
+
+class TestAccountCreatedRenderer(TestCase):
+    def test_render(self):
+        account = Mock(speck=Account)
+        account.id = 1
+        account.balance = 0
+        user = Mock(spec=User)
+        user.accounts = [account]
+
+        state = {
+            'session': user,
+            'account_created': False
+        }
+
+        renderer = AccountCreatedRenderer()
+        result = renderer.render(state)
+
+        self.assertEqual("", result)
+
+        state['account_created'] = True
+
+        result = renderer.render(state)
+
+        self.assertEqual(f"Nice, here's your virtual account\n| Acct No. | Balance |\n| {account.id} | "
+                         f"{account.balance} |", result)
+
