@@ -28,17 +28,27 @@ class TestWelcomeRenderer(TestCase):
 
 class TestMenuRenderer(TestCase):
     def test_render(self):
-        state = {'session': None}
+        state = {
+            'context': 'missing_user_account',
+            'menu': {
+                'prompt_user_info': {},
+                'exit': {}
+            }
+        }
 
         menu_renderer = MenuRenderer()
         result = menu_renderer.render(state)
 
-        self.assertEqual("\nPlease create a user to begin.\n", result)
+        self.assertEqual("\nPlease create a user to begin.\n1. Create my user\n2. Exit\n", result)
 
     def test_render_non_account_menu(self):
-        u = User()
-
-        state = {'session': u}
+        state = {
+            'context': 'no_accounts',
+            'menu': {
+                'create_account': {},
+                'exit': {}
+            }
+        }
 
         menu_renderer = MenuRenderer()
         result = menu_renderer.render(state)
@@ -49,18 +59,21 @@ class TestMenuRenderer(TestCase):
         )
 
     def test_render_account_available(self):
-        u = Mock(spec=User)
-        account = Mock(spec=Account)
-        u.accounts = [account]
-
-        state = {'session': u}
+        state = {
+            'context': 'single_account',
+            'menu': {
+                'deposit': {},
+                'withdraw': {},
+                'create_account': {},
+                'exit': {}
+            }
+        }
 
         renderer = MenuRenderer()
         result = renderer.render(state)
 
         self.assertEqual(
-            "\nHow may I help you?\n1. Deposit\n2. Withdraw\n3. Transfer\n4. Create account\n5. Exit\nPlease select an "
-            "option ",
+            "\nHow may I help you?\n1. Deposit\n2. Withdraw\n3. Create account\n4. Exit\n",
             result
         )
 

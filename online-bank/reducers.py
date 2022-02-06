@@ -63,9 +63,70 @@ def account_created(state, action):
     return {**state, 'account_created': False}
 
 
+def menu_reducer(state, action):
+    act_type = action['type']
+
+    if act_type == 'init':
+        return {
+            **state,
+            'context': 'missing_user_account',
+            'menu': {
+                'prompt_user_info': {
+                    'type': 'user/prompt_info'
+                },
+                'exit': {
+                    'type': 'program/terminate'
+                }
+            }
+        }
+    elif act_type == 'user/prompt_info':
+        return {
+            **state,
+            'context': 'prompt_user_info',
+            'menu': {}
+        }
+
+    elif act_type == 'user/create':
+        return {
+            **state,
+            'context': 'no_accounts',
+            'menu': {
+                'create_account': {
+                    'type': 'account/create'
+                },
+                'exit': {
+                    'type': 'program/terminate'
+                }
+            }
+        }
+
+    elif act_type == 'account/create':
+        return {
+            **state,
+            'context': 'single_account',
+            'menu': {
+                'deposit': {
+                    'type': 'account/prompt_deposit_info'
+                },
+                'withdraw': {
+                    'type': 'account/prompt_withdraw_info'
+                },
+                'create_account': {
+                    'type': 'account/create'
+                },
+                'exit': {
+                    'type': 'program/terminate'
+                }
+            }
+        }
+
+    return state
+
+
 STATE_MAPPING = {
     'bank': bank_reducer,
     'session': user_reducer,
     'exit': exit_reducer,
-    'account_created': account_created
+    'account_created': account_created,
+    'menu': menu_reducer
 }

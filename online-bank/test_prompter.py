@@ -33,7 +33,7 @@ class TestUserInfoPrompter(TestCase):
         mocked_input.side_effect = ['Eduardo', 'Gutierrez']
 
         state = {
-            'session': None
+            'context': 'prompt_user_info'
         }
 
         store = Mock(spec=Store)
@@ -58,12 +58,12 @@ class TestUserInfoPrompter(TestCase):
             }
         })
 
-    @patch.multiple('prompters', input=DEFAULT, print=DEFAULT,  create=True)
+    @patch.multiple('prompters', input=DEFAULT, print=DEFAULT, create=True)
     def test_prompter_waits_for_valid_input(self, input, print):
         input.side_effect = ['', 'Eduardo', '', 'Gutierrez']
 
         state = {
-            'session': None
+            'context': 'prompt_user_info'
         }
 
         store = Mock(spec=Store)
@@ -90,22 +90,18 @@ class TestUserInfoPrompter(TestCase):
 
         self.assertTrue(done)
 
-    @mock.patch('prompters.input', create=True)
-    def test_prompter_ends_when_session_is_active(self, mocked_input):
-        user = User()
+    @patch('prompters.input')
+    def test_prompter_only_activates_on_prompt_user_info(self, mocked_input):
         state = {
-            'session': user
+            'context': 'something_else'
         }
 
         store = Mock(spec=Store)
 
         prompter = UserInfoPrompter(store=store)
-
         done = prompter.prompt(state)
 
         self.assertFalse(done)
-        mocked_input.assert_not_called()
-        store.dispatch.assert_not_called()
 
 
 class TestMainPrompter(TestCase):
@@ -129,14 +125,14 @@ class TestMainPrompter(TestCase):
 
 class TestMenuPrompter(TestCase):
 
-    @patch.multiple('prompters', input=DEFAULT, print=DEFAULT,  create=True)
-    def test_menu_prompter(self, input, print):
-        input.side_effect = ['3', '2', 'y']
+    @patch.multiple('prompters', input=DEFAULT, print=DEFAULT, create=True)
+    def test_menu_exit(self, input, print):
+        input.side_effect = ['2', '1', 'y']
 
-        user = Mock(spec=User)
-        user.accounts = []
         state = {
-            'session': user
+            'menu': {
+                'exit': {'type': 'program/terminate'}
+            }
         }
         store = Mock(spec=Store)
 
@@ -159,14 +155,43 @@ class TestMenuPrompter(TestCase):
             'type': 'program/terminate'
         })
 
+    @patch.multiple('prompters', input=DEFAULT, print=DEFAULT)
+    def test_menu_exit_cancel(self, input, print):
+        input.side_effect = ['1', 'N']
+
+        state = {
+            'menu': {
+                'exit': {'type': 'program/terminate'}
+            }
+        }
+        store = Mock(spec=Store)
+
+        prompter = MenuPrompter(store)
+        done = prompter.prompt(state)
+
+        self.assertTrue(done)
+        print_calls = [
+            call("This is an in memory Bank, your data will be lost, are you sure?"),
+            call("Thanks for keeping us in business!")
+        ]
+        print.assert_has_calls(print_calls)
+
+        self.assertEqual(input.call_count, 2)
+        input_calls = [call("> "), call("(y/N)> ")]
+        input.assert_has_calls(input_calls)
+
+        store.dispatch.assert_called_with({
+            'type': 'program/terminate_cancel'
+        })
+
     @patch.multiple('prompters', input=DEFAULT, print=DEFAULT, sleep=DEFAULT, create=True)
     def test_menu_create_account_selected(self, input, print, sleep):
         input.side_effect = ['1']
 
-        user = Mock(spec=User)
-        user.accounts = []
         state = {
-            'session': user
+            'menu': {
+                'create_account': {'type': 'account/create'},
+            }
         }
         store = Mock(spec=Store)
 
@@ -178,6 +203,39 @@ class TestMenuPrompter(TestCase):
         print.assert_called_once_with("Creating account...")
         sleep.assert_called_with(1)
 
-        store.dispatch.assert_called_with({
-            'type': 'account/create'
-        })
+        store.dispatch.assert_called_with(state['menu']['create_account'])
+
+    @patch('prompters.input')
+    def test_menu_create_user_selected(self, mocked_input):
+        mocked_input.return_value = '1'
+
+        state = {
+            'menu': {
+                'prompt_user_info': {'type': 'user/prompt_info'}
+            }
+        }
+
+        store = Mock(spec=Store)
+
+        prompter = MenuPrompter(store)
+        done = prompter.prompt(state)
+
+        self.assertTrue(done)
+
+        store.dispatch.assert_called_once_with(state['menu']['prompt_user_info'])
+
+    @patch('prompters.input')
+    def test_menu_doest_not_prompt_without_menu(self, mocked_input):
+        state = {
+            'menu': {}
+        }
+
+        store = Mock(spec=Store)
+
+        prompter = MenuPrompter(store)
+        done = prompter.prompt(state)
+
+        self.assertFalse(done)
+
+        store.dispatch.assert_not_called()
+        mocked_input.assert_not_called()
