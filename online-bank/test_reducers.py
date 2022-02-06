@@ -123,6 +123,50 @@ class TestBankReducer(TestCase):
 
         account2.deposit.assert_called_with(100)
 
+    def test_makes_withdraw(self):
+        user = Mock(spec=User)
+        account = Mock(spec=Account)
+        account.id = 1
+        account.balance = 100
+
+        user.accounts = [account]
+
+        state = {
+            'session': user
+        }
+
+        action = {'type': 'account/withdraw', 'payload': {'id': 1, 'amount': 100}}
+
+        bank_reducer(state, action)
+
+        account.withdraw.assert_called_with(100)
+
+    def test_errors_with_negative_withdraw(self):
+        user = Mock(spec=User)
+        account = Mock(spec=Account)
+        account.id = 1
+        account.balance = 50
+
+        user.accounts = [account]
+
+        account.withdraw.return_value = 0
+
+        state = {
+            'session': user
+        }
+
+        action = {'type': 'account/withdraw', 'payload': {'id': 1, 'amount': 100}}
+
+        state = bank_reducer(state, action)
+
+        self.assertEqual({'session': user, 'error': 'Uh oh, you can withdraw at most $50'}, state)
+
+        account.balance = 0
+
+        state = bank_reducer(state, action)
+
+        self.assertEqual({'session': user, 'error': 'Not enough funds to withdraw $100'}, state)
+
 
 class TestUserReducer(TestCase):
 
@@ -242,6 +286,22 @@ class TestMenuReducer(TestCase):
 
         self.assertEqual({
             'context': 'prompt_deposit_info',
+            'menu': {}
+        }, state)
+
+    def test_menu_disables_on_withdraw_info(self):
+        state = {
+            'context': 'single_account',
+            'menu': {
+                'some': {}
+            }
+        }
+        action = {'type': 'account/prompt_withdraw_info'}
+
+        state = menu_reducer(state, action)
+
+        self.assertEqual({
+            'context': 'prompt_withdraw_info',
             'menu': {}
         }, state)
 

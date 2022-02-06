@@ -31,6 +31,16 @@ def user_reducer(state, action):
     return state
 
 
+def __find_account(state, action):
+    account_id = action['payload']['id']
+    account_found = None
+    for account in state['session'].accounts:
+        if account.id == account_id:
+            account_found = account
+            break
+    return account_found
+
+
 def bank_reducer(state, action):
     act_type = action['type']
 
@@ -42,15 +52,23 @@ def bank_reducer(state, action):
         return {**state, 'account_created': True}
 
     elif act_type == 'account/deposit':
-        account_id = action['payload']['id']
         amount = action['payload']['amount']
-        account_found = None
-        for account in state['session'].accounts:
-            if account.id == account_id:
-                account_found = account
-                break
+        account_found = __find_account(state, action)
         if account_found is not None:
             account_found.deposit(amount)
+
+    elif act_type == 'account/withdraw':
+        amount = action['payload']['amount']
+        account_found = __find_account(state, action)
+
+        if account_found is not None:
+            balance = account_found.balance
+            if balance == 0:
+                return {**state, 'error': f"Not enough funds to withdraw ${amount}"}
+            elif 0 < balance < amount:
+                return {**state, 'error': f"Uh oh, you can withdraw at most ${balance}"}
+            else:
+                account_found.withdraw(amount)
 
     return state
 
@@ -102,6 +120,13 @@ def menu_reducer(state, action):
         return {
             **state,
             'context': 'prompt_deposit_info',
+            'menu': {}
+        }
+
+    elif act_type == 'account/prompt_withdraw_info':
+        return {
+            **state,
+            'context': 'prompt_withdraw_info',
             'menu': {}
         }
 
