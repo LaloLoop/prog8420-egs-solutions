@@ -52,13 +52,16 @@ class Account:
 
 
 class User:
-    accounts = []
 
     def __init__(self, user_id=1, name='John', last_name='Doe'):
         self.id = user_id
         self.name = name
         self.last_name = last_name
+        self.accounts = []
 
     # Note 3. As a User I can create multiple accounts
     def create_account(self, bank):
-        return bank.create_account(self)
+        new_account = bank.create_account(self)
+        self.accounts.append(new_account)
+
+        return new_account

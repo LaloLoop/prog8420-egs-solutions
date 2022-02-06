@@ -1,7 +1,8 @@
 from unittest import TestCase
+from unittest.mock import Mock
 
 from entities import User, Account
-from render import Renderer, WelcomeRenderer, MenuRenderer, MainRenderer
+from render import Renderer, WelcomeRenderer, MenuRenderer, MainRenderer, AccountCreatedRenderer
 
 
 class TestRenderer(TestCase):
@@ -27,22 +28,54 @@ class TestWelcomeRenderer(TestCase):
 
 class TestMenuRenderer(TestCase):
     def test_render(self):
-        state = {'session': None}
+        state = {
+            'context': 'missing_user_account',
+            'menu': {
+                'prompt_user_info': {},
+                'exit': {}
+            }
+        }
 
         menu_renderer = MenuRenderer()
         result = menu_renderer.render(state)
 
-        self.assertEqual("\nPlease create a user to begin.\n", result)
+        self.assertEqual("\nPlease create a user to begin.\n1. Create my user\n2. Exit\n", result)
 
     def test_render_non_account_menu(self):
-        u = User()
+        state = {
+            'context': 'no_accounts',
+            'menu': {
+                'create_account': {},
+                'exit': {}
+            }
+        }
 
-        state = {'session': u}
+        menu_renderer = MenuRenderer()
+        result = menu_renderer.render(state)
 
-        menu_rendered = MenuRenderer()
-        result = menu_rendered.render(state)
+        self.assertEqual(
+            "Your user is setup and you can now create a Bank account!\n1. Create account\n2. Exit\n",
+            result
+        )
 
-        self.assertEqual("Your user is setup and you can now create a Bank account!\n1. Create account\n2. Exit\n", result)
+    def test_render_account_available(self):
+        state = {
+            'context': 'single_account',
+            'menu': {
+                'deposit': {},
+                'withdraw': {},
+                'create_account': {},
+                'exit': {}
+            }
+        }
+
+        renderer = MenuRenderer()
+        result = renderer.render(state)
+
+        self.assertEqual(
+            "\nHow may I help you?\n1. Deposit\n2. Withdraw\n3. Create account\n4. Exit\n",
+            result
+        )
 
 
 class TestMainRenderer(TestCase):
@@ -63,3 +96,30 @@ class TestMainRenderer(TestCase):
         mr = MainRenderer(renderers=[Renderer1(), Renderer2()])
 
         self.assertEqual("\nHallo, Eduardo!\n", mr.render(state))
+
+
+class TestAccountCreatedRenderer(TestCase):
+    def test_render(self):
+        account = Mock(speck=Account)
+        account.id = 1
+        account.balance = 0
+        user = Mock(spec=User)
+        user.accounts = [account]
+
+        state = {
+            'session': user,
+            'account_created': False
+        }
+
+        renderer = AccountCreatedRenderer()
+        result = renderer.render(state)
+
+        self.assertEqual("", result)
+
+        state['account_created'] = True
+
+        result = renderer.render(state)
+
+        self.assertEqual(f"Nice, here's your virtual account\n| Acct No. | Balance |\n| {account.id} | "
+                         f"{account.balance} |", result)
+

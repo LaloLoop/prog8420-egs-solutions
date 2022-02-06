@@ -1,3 +1,6 @@
+from time import sleep
+
+
 class Prompter:
     def prompt(self, state):
         result = input("What's on your mind?")
@@ -11,7 +14,7 @@ class UserInfoPrompter(Prompter):
 
     def prompt(self, state):
 
-        if 'session' in state and state['session'] is not None:
+        if 'context' in state and state['context'] != 'prompt_user_info':
             return False
 
         name = ''
@@ -47,20 +50,45 @@ class MenuPrompter(Prompter):
 
     def prompt(self, state):
 
-        user = state['session']
+        menu = state['menu']
+        menu_keys = menu.keys()
+
+        if len(menu_keys) == 0:
+            return False
+
+        menu_actions = {}
+        for i, key in enumerate(menu_keys, start=1):
+            menu_actions[str(i)] = key
 
         while True:
             value = input("> ")
 
-            if user is not None and len(user.accounts) == 0 and value == "2":
-                print("This is an in memory Bank, your data will be lost, are you sure?")
-                if input("(y/N)> ") == "y":
-                    self.store.dispatch({'type': 'program/terminate'})
-                    print("Ok, hope you enjoyed your virtual 💸. Bye! 👋🏼")
-                break
-            else:
+            if value not in menu_actions:
                 print("Sorry, I cannot help you with that at the moment, please choose another option")
                 continue
+
+            selection = menu_actions[value]
+
+            if selection == 'exit':
+                print("This is an in memory Bank, your data will be lost, are you sure?")
+                if input("(y/N)> ") == "y":
+                    self.store.dispatch(menu[selection])
+                    print("Ok, hope you enjoyed your virtual 💸. Bye! 👋🏼")
+                else:
+                    self.store.dispatch({'type': 'program/terminate_cancel'})
+                    print("Thanks for keeping us in business!")
+
+                break
+
+            elif selection == 'create_account':
+                self.store.dispatch(menu[selection])
+                print("Creating account...")
+                sleep(1)
+                break
+
+            else:
+                self.store.dispatch(menu[selection])
+                break
 
         return True
 
