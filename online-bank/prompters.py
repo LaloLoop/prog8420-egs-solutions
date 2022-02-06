@@ -1,5 +1,7 @@
 from time import sleep
 
+from render import AccountsRenderer
+
 
 class Prompter:
     def prompt(self, state):
@@ -93,10 +95,68 @@ class MenuPrompter(Prompter):
         return True
 
 
+class DepositPrompter(Prompter):
+    def __init__(self, store, accounts_renderer=AccountsRenderer()):
+        self.store = store
+        self.accounts_renderer = accounts_renderer
+
+    def prompt(self, state):
+        if state['context'] != 'prompt_deposit_info':
+            return False
+
+        account_id = 0
+        amount = 0
+
+        input_error = True
+        while input_error:
+            if account_id == 0:
+                print('Which account would you like to deposit to?')
+                print(self.accounts_renderer.render_table_from_state(state))
+
+                try:
+                    account_id = int(input("> "))
+                except ValueError:
+                    print('That\'s not a valid ID, have a look again')
+                    input_error = True
+                    continue
+
+            print("Great! How much money do you want to deposit?")
+
+            try:
+                amount = int(input("> "))
+            except ValueError:
+                print("Wait a minute, that does not look like a number.")
+                input_error = True
+                continue
+
+            input_error = False
+
+        print("Making deposit...")
+        self.store.dispatch({
+            'type': 'account/deposit',
+            'payload': {
+                'id': account_id,
+                'amount': amount
+            }
+        })
+
+        sleep(1)
+
+        print("Here's your account detail")
+        print(self.accounts_renderer.render_by_id(state, account_id=account_id))
+
+        return True
+
+
 class MainPrompter(Prompter):
     def __init__(self, store, prompters=None):
         if prompters is None:
-            prompters = [UserInfoPrompter(store), MenuPrompter(store), Prompter()]
+            prompters = [
+                UserInfoPrompter(store),
+                DepositPrompter(store),
+                MenuPrompter(store),
+                Prompter()
+            ]
         self.prompters = prompters
 
     def prompt(self, state):
@@ -105,4 +165,3 @@ class MainPrompter(Prompter):
                 break
 
         return True
-

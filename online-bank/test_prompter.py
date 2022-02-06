@@ -1,8 +1,9 @@
 from unittest import TestCase, mock
 from unittest.mock import call, Mock, patch, DEFAULT
 
-from entities import User
-from prompters import Prompter, UserInfoPrompter, MainPrompter, MenuPrompter
+from entities import User, Account
+from prompters import Prompter, UserInfoPrompter, MainPrompter, MenuPrompter, DepositPrompter
+from render import AccountsRenderer
 from store import Store
 
 
@@ -239,3 +240,106 @@ class TestMenuPrompter(TestCase):
 
         store.dispatch.assert_not_called()
         mocked_input.assert_not_called()
+
+
+class TestDepositPrompter(TestCase):
+
+    @patch.multiple('prompters', input=DEFAULT, print=DEFAULT, sleep=DEFAULT)
+    def test_deposit_flow(self, input, print, sleep):
+        input.side_effect = ['1', '300']
+        accounts_str = "\n| ID | Balance |\n| 1  | 0 |\n| 2  | 250  |\n"
+        single_account_str = "\n| ID | sBalance |\n| 1  | 300 |\n"
+
+        accounts_renderer = Mock(spec=AccountsRenderer)
+        accounts_renderer.render_table_from_state.return_value = accounts_str
+        accounts_renderer.render_by_id.return_value = single_account_str
+
+        store = Mock(spec=Store)
+
+        state = {
+            'context': 'prompt_deposit_info',
+        }
+
+        prompter = DepositPrompter(store, accounts_renderer)
+        done = prompter.prompt(state)
+
+        self.assertTrue(done)
+
+        print_calls = [
+            call("Which account would you like to deposit to?"),
+            call(accounts_str),
+            call('Great! How much money do you want to deposit?'),
+            call('Making deposit...'),
+            call("Here's your account detail"),
+            call(single_account_str)
+        ]
+        print.assert_has_calls(print_calls)
+
+        input_calls = [call("> "), call("> ")]
+        input.assert_has_calls(input_calls)
+
+        sleep.assert_called_once_with(1)
+
+        store.dispatch.assert_called_once_with({
+            'type': 'account/deposit',
+            'payload': {
+                'id': 1,
+                'amount': 300
+            }
+        })
+
+        accounts_renderer.render_table_from_state.assert_called_once_with(state)
+        accounts_renderer.render_by_id.assert_called_once_with(state, account_id=1)
+
+    @patch.multiple('prompters', input=DEFAULT, print=DEFAULT, sleep=DEFAULT)
+    def test_deposit_validates_numeric_input(self, input, print, sleep):
+        input.side_effect = ['no', '1', '', '300']
+
+        accounts_renderer = Mock()
+        accounts_renderer.render_table_from_state.return_value = 'account info'
+        accounts_renderer.render_by_id.return_value = 'single account'
+
+        state = {
+            'context': 'prompt_deposit_info',
+        }
+
+        store = Mock(spec=Store)
+
+        prompter = DepositPrompter(store, accounts_renderer)
+        done = prompter.prompt(state)
+
+        self.assertTrue(done)
+
+        print_calls = [
+            call("Which account would you like to deposit to?"),
+            call('account info'),
+            call('That\'s not a valid ID, have a look again'),
+            call("Which account would you like to deposit to?"),
+            call('account info'),
+            call('Great! How much money do you want to deposit?'),
+            call("Wait a minute, that does not look like a number."),
+            call("Great! How much money do you want to deposit?"),
+            call('Making deposit...'),
+            call("Here's your account detail"),
+            call('single account')
+        ]
+        print.assert_has_calls(print_calls)
+
+        input_calls = [call("> "), call("> ")]
+        input.assert_has_calls(input_calls)
+
+    def test_deposit_does_not_prompt_if_not_in_state(self):
+        state = {
+            'context': 'some_other'
+        }
+
+        store = Mock(spec=Store)
+        accounts_renderer = Mock()
+
+        prompter = DepositPrompter(store, accounts_renderer)
+
+        done = prompter.prompt(state)
+
+        self.assertFalse(done)
+        store.dispatch.assert_not_called()
+        accounts_renderer.render.assert_not_called()

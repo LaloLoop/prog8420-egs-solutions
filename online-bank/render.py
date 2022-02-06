@@ -42,24 +42,41 @@ class MenuRenderer(Renderer):
         return result
 
 
-class AccountCreatedRenderer(Renderer):
+class AccountsRenderer(Renderer):
     def render(self, state):
         if state['account_created']:
             account = state['session'].accounts[-1]
-            return f"Nice, here's your virtual account\n| Acct No. | Balance |\n| {account.id} | {account.balance} |"
+            return self.render_table([account])
+
         return ""
 
+    def render_by_id(self, state, account_id):
+        found = None
+        for account in state['session'].accounts:
+            if account.id == account_id:
+                found = account
+                break
 
-class AccountsRenderer(Renderer):
-    def render(self, state):
-        super().render(state)
+        return self.render_table([found])
+
+    def render_table_from_state(self, state):
+        accounts = state['session'].accounts
+
+        return self.render_table(accounts)
+
+    def render_table(self, accounts):
+        result = f"\n| Acct No. | Balance |"
+        for account in accounts:
+            result += f"\n| {account.id} | {account.balance} |"
+
+        return result
 
 
 class MainRenderer(Renderer):
     def __init__(self, renderers=None):
         if renderers is None:
             renderers = [
-                AccountCreatedRenderer(),
+                AccountsRenderer(),
                 WelcomeRenderer(),
                 MenuRenderer(),
             ]

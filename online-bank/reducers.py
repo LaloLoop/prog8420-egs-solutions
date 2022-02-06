@@ -36,9 +36,21 @@ def bank_reducer(state, action):
 
     if act_type == 'init':
         return {**state, 'bank': Bank()}
+
     elif act_type == 'account/create':
         state['session'].create_account(state['bank'])
         return {**state, 'account_created': True}
+
+    elif act_type == 'account/deposit':
+        account_id = action['payload']['id']
+        amount = action['payload']['amount']
+        account_found = None
+        for account in state['session'].accounts:
+            if account.id == account_id:
+                account_found = account
+                break
+        if account_found is not None:
+            account_found.deposit(amount)
 
     return state
 
@@ -86,6 +98,13 @@ def menu_reducer(state, action):
             'menu': {}
         }
 
+    elif act_type == 'account/prompt_deposit_info':
+        return {
+            **state,
+            'context': 'prompt_deposit_info',
+            'menu': {}
+        }
+
     elif act_type == 'user/create':
         return {
             **state,
@@ -100,7 +119,7 @@ def menu_reducer(state, action):
             }
         }
 
-    elif act_type == 'account/create':
+    elif act_type in ['account/create', 'account/deposit']:
         return {
             **state,
             'context': 'single_account',
