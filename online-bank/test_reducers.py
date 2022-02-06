@@ -1,7 +1,7 @@
 from unittest import TestCase, mock
 from unittest.mock import Mock, patch, DEFAULT
 
-from entities import Bank, User
+from entities import Bank, User, Account
 
 from reducers import main_reducer, user_reducer, bank_reducer, STATE_MAPPING, exit_reducer, account_created, \
     menu_reducer
@@ -102,6 +102,26 @@ class TestBankReducer(TestCase):
         user.create_account.assert_called_with(bank)
 
         self.assertTrue(state['account_created'])
+
+    def test_makes_deposit(self):
+        user = Mock(spec=User)
+        account1 = Mock(spec=Account)
+        account1.id = 1
+        account1.balance = 0
+        account2 = Mock(spec=Account)
+        account2.id = 2
+        account2.balance = 0
+        user.accounts = [account1, account2]
+
+        state = {
+            'session': user
+        }
+
+        action = {'type': 'account/deposit', 'payload': {'id': 2, 'amount': 100}}
+
+        bank_reducer(state, action)
+
+        account2.deposit.assert_called_with(100)
 
 
 class TestUserReducer(TestCase):
@@ -209,6 +229,22 @@ class TestMenuReducer(TestCase):
             'menu': {}
         }, state)
 
+    def test_menu_disables_on_deposit_info(self):
+        state = {
+            'context': 'single_account',
+            'menu': {
+                'some': {}
+            }
+        }
+        action = {'type': 'account/prompt_deposit_info'}
+
+        state = menu_reducer(state, action)
+
+        self.assertEqual({
+            'context': 'prompt_deposit_info',
+            'menu': {}
+        }, state)
+
     def test_menu_no_account_when_user_create(self):
         state = {
             'context': 'missing_user_account',
@@ -235,11 +271,7 @@ class TestMenuReducer(TestCase):
             'context': 'no_accounts'
         }
 
-        action = {'type': 'account/create'}
-
-        state = menu_reducer(state, action)
-
-        self.assertEqual({
+        expected_state = {
             'context': 'single_account',
             'menu': {
                 'deposit': {
@@ -255,4 +287,16 @@ class TestMenuReducer(TestCase):
                     'type': 'program/terminate'
                 }
             }
-        }, state)
+        }
+
+        action = {'type': 'account/create'}
+
+        actual_state = menu_reducer(state, action)
+
+        self.assertEqual(expected_state, actual_state)
+
+        action = {'type': 'account/deposit'}
+
+        actual_state = menu_reducer(state, action)
+
+        self.assertEqual(expected_state, actual_state)

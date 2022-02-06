@@ -2,7 +2,7 @@ from unittest import TestCase
 from unittest.mock import Mock
 
 from entities import User, Account
-from render import Renderer, WelcomeRenderer, MenuRenderer, MainRenderer, AccountCreatedRenderer
+from render import Renderer, WelcomeRenderer, MenuRenderer, MainRenderer, AccountsRenderer
 
 
 class TestRenderer(TestCase):
@@ -98,9 +98,9 @@ class TestMainRenderer(TestCase):
         self.assertEqual("\nHallo, Eduardo!\n", mr.render(state))
 
 
-class TestAccountCreatedRenderer(TestCase):
+class TestAccountsRenderer(TestCase):
     def test_render(self):
-        account = Mock(speck=Account)
+        account = Mock(spec=Account)
         account.id = 1
         account.balance = 0
         user = Mock(spec=User)
@@ -111,7 +111,7 @@ class TestAccountCreatedRenderer(TestCase):
             'account_created': False
         }
 
-        renderer = AccountCreatedRenderer()
+        renderer = AccountsRenderer()
         result = renderer.render(state)
 
         self.assertEqual("", result)
@@ -120,6 +120,37 @@ class TestAccountCreatedRenderer(TestCase):
 
         result = renderer.render(state)
 
-        self.assertEqual(f"Nice, here's your virtual account\n| Acct No. | Balance |\n| {account.id} | "
+        self.assertEqual(f"\n| Acct No. | Balance |\n| {account.id} | "
                          f"{account.balance} |", result)
 
+    def test_render_by_id(self):
+        user = Mock(spec=User)
+        user.accounts = [Account(1, 100), Account(2, 200)]
+
+        state = {
+            'session': user
+        }
+
+        renderer = AccountsRenderer()
+        result = renderer.render_by_id(state, account_id=2)
+
+        account2 = user.accounts[1]
+        self.assertEqual(f"\n| Acct No. | Balance |\n| {account2.id} | {account2.balance} |", result)
+
+    def test_render_table(self):
+        accounts = [Account(1, 100), Account(2, 200)]
+
+        renderer = AccountsRenderer()
+        result = renderer.render_table(accounts)
+
+        self.assertEqual(f"\n| Acct No. | Balance |\n| 1 | 100 |\n| 2 | 200 |", result)
+
+    def test_render_table_from_state(self):
+        user = Mock(spec=User)
+        accounts = [Account(1, 100), Account(2, 200)]
+        user.accounts = accounts
+
+        renderer = AccountsRenderer()
+        result = renderer.render_table_from_state({'session': user})
+
+        self.assertEqual(f"\n| Acct No. | Balance |\n| 1 | 100 |\n| 2 | 200 |", result)
