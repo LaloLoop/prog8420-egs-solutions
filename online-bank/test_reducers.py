@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch, DEFAULT
 from entities import Bank, User, Account
 
 from reducers import main_reducer, user_reducer, bank_reducer, STATE_MAPPING, exit_reducer, account_created, \
-    menu_reducer
+    menu_reducer, error_reducer
 
 
 class TestMainReducer(TestCase):
@@ -14,9 +14,10 @@ class TestMainReducer(TestCase):
         bank_reducer=DEFAULT,
         exit_reducer=DEFAULT,
         account_created=DEFAULT,
-        menu_reducer=DEFAULT
+        menu_reducer=DEFAULT,
+        error_reducer=DEFAULT
     )
-    def test_main_reducer(self, user_reducer, bank_reducer, exit_reducer, account_created, menu_reducer):
+    def test_main_reducer(self, user_reducer, bank_reducer, exit_reducer, account_created, menu_reducer, error_reducer):
         bank = Mock(spec=Bank)
         user = Mock(spec=User)
 
@@ -35,6 +36,9 @@ class TestMainReducer(TestCase):
         test_state = {**test_state, 'context': 'some', 'menu': {}}
         menu_reducer.return_value = test_state
 
+        test_state = {**test_state, 'error': ''}
+        error_reducer.return_value = test_state
+
         action = {'type': 'some/action'}
 
         STATE_MAPPING['bank'] = bank_reducer
@@ -42,6 +46,7 @@ class TestMainReducer(TestCase):
         STATE_MAPPING['exit'] = exit_reducer
         STATE_MAPPING['account_created'] = account_created
         STATE_MAPPING['menu'] = menu_reducer
+        STATE_MAPPING['error'] = error_reducer
 
         original_state = {}
         state = main_reducer(original_state, action)
@@ -66,6 +71,12 @@ class TestMainReducer(TestCase):
             'account_created': False
         }
         menu_reducer.assert_called_once_with(exp_state, action)
+        exp_state = {
+            **exp_state,
+            'menu': {},
+            'context': 'some'
+        }
+        error_reducer.assert_called_once_with(exp_state, action)
 
         self.assertEqual({
             'session': user,
@@ -73,7 +84,8 @@ class TestMainReducer(TestCase):
             'exit': False,
             'account_created': False,
             'context': 'some',
-            'menu': {}
+            'menu': {},
+            'error': ''
         }, state)
 
 
@@ -167,6 +179,12 @@ class TestBankReducer(TestCase):
 
         self.assertEqual({'session': user, 'error': 'Not enough funds to withdraw $100'}, state)
 
+        account.balance = 100
+
+        state = bank_reducer(state, action)
+
+        self.assertEqual({'session': user, 'error': ''}, state)
+
 
 class TestUserReducer(TestCase):
 
@@ -236,6 +254,28 @@ class TestUIReducers(TestCase):
         state = account_created(state, action)
 
         self.assertFalse(state['account_created'])
+
+    def test_error_reducer(self):
+        state = {}
+        action = {'type': 'init'}
+
+        state = error_reducer(state, action)
+
+        self.assertEqual(state['error'], '')
+
+        action = {'type': 'account/withdraw'}
+        state = {'error': 'some descriptive error'}
+
+        state = error_reducer(state, action)
+
+        self.assertEqual(state['error'], 'some descriptive error')
+
+        action = {'type': 'another/action'}
+        state = error_reducer(state, action)
+
+        self.assertEqual({
+            'error': ''
+        }, state)
 
 
 class TestMenuReducer(TestCase):
@@ -350,13 +390,13 @@ class TestMenuReducer(TestCase):
         }
 
         action = {'type': 'account/create'}
-
         actual_state = menu_reducer(state, action)
-
         self.assertEqual(expected_state, actual_state)
 
         action = {'type': 'account/deposit'}
-
         actual_state = menu_reducer(state, action)
+        self.assertEqual(expected_state, actual_state)
 
+        action = {'type': 'account/withdraw'}
+        actual_state = menu_reducer(state, action)
         self.assertEqual(expected_state, actual_state)

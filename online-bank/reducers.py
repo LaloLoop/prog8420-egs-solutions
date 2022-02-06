@@ -69,6 +69,7 @@ def bank_reducer(state, action):
                 return {**state, 'error': f"Uh oh, you can withdraw at most ${balance}"}
             else:
                 account_found.withdraw(amount)
+                return {**state, 'error': ''}
 
     return state
 
@@ -91,6 +92,15 @@ def account_created(state, action):
         return state
 
     return {**state, 'account_created': False}
+
+
+def error_reducer(state, action):
+    act_type = action['type']
+
+    if act_type == 'account/withdraw':
+        return state
+
+    return {**state, 'error': ''}
 
 
 def menu_reducer(state, action):
@@ -144,7 +154,7 @@ def menu_reducer(state, action):
             }
         }
 
-    elif act_type in ['account/create', 'account/deposit']:
+    elif act_type in ['account/create', 'account/deposit', 'account/withdraw']:
         return {
             **state,
             'context': 'single_account',
@@ -172,5 +182,6 @@ STATE_MAPPING = {
     'session': user_reducer,
     'exit': exit_reducer,
     'account_created': account_created,
-    'menu': menu_reducer
+    'menu': menu_reducer,
+    'error': error_reducer,
 }

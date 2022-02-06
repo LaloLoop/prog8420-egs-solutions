@@ -2,7 +2,7 @@ from unittest import TestCase, mock
 from unittest.mock import call, Mock, patch, DEFAULT
 
 from entities import User, Account
-from prompters import Prompter, UserInfoPrompter, MainPrompter, MenuPrompter, DepositPrompter
+from prompters import Prompter, UserInfoPrompter, MainPrompter, MenuPrompter, DepositPrompter, WithdrawPrompter
 from render import AccountsRenderer
 from store import Store
 
@@ -244,11 +244,16 @@ class TestMenuPrompter(TestCase):
 
 class TestDepositPrompter(TestCase):
 
+    @patch.multiple('prompters', get_user_account_by_id=DEFAULT)
+    def setUp(self, get_user_account_by_id) -> None:
+        self.account_selector = get_user_account_by_id
+        self.account_selector.side_effect = [Mock(spec=Account)]
+
     @patch.multiple('prompters', input=DEFAULT, print=DEFAULT, sleep=DEFAULT)
     def test_deposit_flow(self, input, print, sleep):
         input.side_effect = ['1', '300']
         accounts_str = "\n| ID | Balance |\n| 1  | 0 |\n| 2  | 250  |\n"
-        single_account_str = "\n| ID | sBalance |\n| 1  | 300 |\n"
+        single_account_str = "\n| ID | Balance |\n| 1  | 300 |\n"
 
         accounts_renderer = Mock(spec=AccountsRenderer)
         accounts_renderer.render_table_from_state.return_value = accounts_str
@@ -260,7 +265,7 @@ class TestDepositPrompter(TestCase):
             'context': 'prompt_deposit_info',
         }
 
-        prompter = DepositPrompter(store, accounts_renderer)
+        prompter = DepositPrompter(store, accounts_renderer, self.account_selector)
         done = prompter.prompt(state)
 
         self.assertTrue(done)
@@ -305,7 +310,7 @@ class TestDepositPrompter(TestCase):
 
         store = Mock(spec=Store)
 
-        prompter = DepositPrompter(store, accounts_renderer)
+        prompter = DepositPrompter(store, accounts_renderer, self.account_selector)
         done = prompter.prompt(state)
 
         self.assertTrue(done)
@@ -325,7 +330,7 @@ class TestDepositPrompter(TestCase):
         ]
         print.assert_has_calls(print_calls)
 
-        input_calls = [call("> "), call("> ")]
+        input_calls = [call("> "), call("> "), call("> "), call("> ")]
         input.assert_has_calls(input_calls)
 
     def test_deposit_does_not_prompt_if_not_in_state(self):
@@ -336,10 +341,264 @@ class TestDepositPrompter(TestCase):
         store = Mock(spec=Store)
         accounts_renderer = Mock()
 
-        prompter = DepositPrompter(store, accounts_renderer)
+        prompter = DepositPrompter(store, accounts_renderer, self.account_selector)
 
         done = prompter.prompt(state)
 
         self.assertFalse(done)
         store.dispatch.assert_not_called()
         accounts_renderer.render.assert_not_called()
+
+    @patch.multiple('prompters', input=DEFAULT, print=DEFAULT, sleep=DEFAULT)
+    def test_withdraw_validates_account_id(self, input, print, sleep):
+        input.side_effect = ['2', '1', '10']
+
+        accounts_renderer = Mock()
+        accounts_renderer.render_table_from_state.return_value = 'account info'
+        accounts_renderer.render_by_id.return_value = 'single account'
+        self.account_selector.side_effect = [None, Mock(Account)]
+
+        state = {
+            'context': 'prompt_deposit_info',
+        }
+
+        store = Mock(spec=Store)
+        store.state = state
+
+        prompter = DepositPrompter(store, accounts_renderer, self.account_selector)
+        done = prompter.prompt(state)
+
+        self.assertTrue(done)
+
+        print_calls = [
+            call("Which account would you like to deposit to?"),
+            call('account info'),
+            call("That account does not exist, please pick a valid one"),
+            call("Which account would you like to deposit to?"),
+            call('account info'),
+            call('Great! How much money do you want to deposit?'),
+            call('Making deposit...'),
+            call("Here's your account detail"),
+            call('single account')
+        ]
+        print.assert_has_calls(print_calls)
+
+        input_calls = [call("> "), call("> "), call("> ")]
+        input.assert_has_calls(input_calls)
+
+
+class TestWithdrawPrompter(TestCase):
+
+    @patch.multiple('prompters', input=DEFAULT, print=DEFAULT, sleep=DEFAULT, get_user_account_by_id=DEFAULT)
+    def test_only_prompts_on_prompt_withdraw_info(self, input, print, sleep, get_user_account_by_id):
+        state = {
+            'context': 'test'
+        }
+
+        accounts_renderer = Mock(spec=AccountsRenderer)
+        store = Mock(spec=Store)
+
+        prompter = WithdrawPrompter(store, accounts_renderer, get_user_account_by_id)
+
+        done = prompter.prompt(state)
+
+        self.assertFalse(done)
+        accounts_renderer.render_table_from_state.assert_not_called()
+        store.dispatch.assert_not_called()
+        input.assert_not_called()
+        print.assert_not_called()
+        sleep.assert_not_called()
+        get_user_account_by_id.assert_not_called()
+
+    @patch.multiple('prompters', input=DEFAULT, print=DEFAULT, sleep=DEFAULT, get_user_account_by_id=DEFAULT)
+    def test_withdraw_flow(self, input, print, sleep, get_user_account_by_id):
+        input.side_effect = ['1', '100']
+        accounts_str = "\n| ID | Balance |\n| 1  | 100 |\n| 2  | 250  |\n"
+
+        accounts_renderer = Mock(spec=AccountsRenderer)
+        accounts_renderer.render_table_from_state.return_value = accounts_str
+        get_user_account_by_id.return_value = Mock(spec=Account)
+
+        store = Mock(spec=Store)
+
+        state = {
+            'context': 'prompt_withdraw_info'
+        }
+
+        store.state = state
+
+        prompter = WithdrawPrompter(store, accounts_renderer, get_user_account_by_id)
+
+        done = prompter.prompt(state)
+
+        self.assertTrue(done)
+
+        get_user_account_by_id.assert_called_once_with(state, account_id=1)
+
+        print_calls = [
+            call("Which account would you like to withdraw from?"),
+            call(accounts_str),
+            call("How much money would you like to withdraw?"),
+            call("Getting your money..."),
+            call("You've withdrawn $100")
+        ]
+        print.assert_has_calls(print_calls)
+
+        input_calls = [call("> "), call("> ")]
+        input.assert_has_calls(input_calls)
+
+        store.dispatch.assert_called_with({
+            'type': 'account/withdraw',
+            'payload': {
+                'id': 1,
+                'amount': 100
+            }
+        })
+
+        sleep.assert_called_once_with(1)
+
+    @patch.multiple('prompters', input=DEFAULT, print=DEFAULT, sleep=DEFAULT, get_user_account_by_id=DEFAULT)
+    def test_withdraw_validates_numeric_input(self, input, print, sleep, get_user_account_by_id):
+        input.side_effect = ['hi', '1', '', '100']
+
+        accounts_renderer = Mock()
+        accounts_renderer.render_table_from_state.return_value = 'account info'
+        accounts_renderer.render_by_id.return_value = 'single account'
+        get_user_account_by_id.return_value = Mock(spec=Account)
+
+        state = {
+            'context': 'prompt_withdraw_info',
+        }
+
+        store = Mock(spec=Store)
+        store.state = state
+
+        prompter = WithdrawPrompter(store, accounts_renderer, get_user_account_by_id)
+        done = prompter.prompt(state)
+
+        self.assertTrue(done)
+
+        print_calls = [
+            call("Which account would you like to withdraw from?"),
+            call('account info'),
+            call('That\'s not a numeric ID, have a look again'),
+            call("Which account would you like to withdraw from?"),
+            call('account info'),
+            call("How much money would you like to withdraw?"),
+            call("Hold your horses, please give a number."),
+            call("How much money would you like to withdraw?"),
+            call("Getting your money..."),
+            call("You've withdrawn $100")
+        ]
+
+        print.assert_has_calls(print_calls)
+
+        input_calls = [call("> "), call("> "), call("> "), call("> ")]
+        input.assert_has_calls(input_calls)
+
+    @patch.multiple('prompters', input=DEFAULT, print=DEFAULT, sleep=DEFAULT, get_user_account_by_id=DEFAULT)
+    def test_withdraw_validates_negative_numbers(self, input, print, sleep, get_user_account_by_id):
+        input.side_effect = ['1', '-100', '100']
+
+        accounts_renderer = Mock()
+        accounts_renderer.render_table_from_state.return_value = 'account info'
+        accounts_renderer.render_by_id.return_value = 'single account'
+        get_user_account_by_id.return_value = Mock(spec=Account)
+
+        state = {
+            'context': 'prompt_withdraw_info',
+        }
+
+        store = Mock(spec=Store)
+        store.state = state
+
+        prompter = WithdrawPrompter(store, accounts_renderer, get_user_account_by_id)
+        done = prompter.prompt(state)
+
+        self.assertTrue(done)
+
+        print_calls = [
+            call("Which account would you like to withdraw from?"),
+            call('account info'),
+            call("How much money would you like to withdraw?"),
+            call("Your amount has to be greater than 0"),
+            call("How much money would you like to withdraw?"),
+            call("Getting your money..."),
+            call("You've withdrawn $100")
+        ]
+
+        print.assert_has_calls(print_calls)
+
+        input_calls = [call("> "), call("> "), call("> ")]
+        input.assert_has_calls(input_calls)
+
+    @patch.multiple('prompters', input=DEFAULT, print=DEFAULT, sleep=DEFAULT, get_user_account_by_id=DEFAULT)
+    def test_withdraw_notifies_error(self, input, print, sleep, get_user_account_by_id):
+        input.side_effect = ['1', '1000']
+
+        accounts_renderer = Mock()
+        accounts_renderer.render_table_from_state.return_value = 'account info'
+        accounts_renderer.render_by_id.return_value = 'single account'
+        get_user_account_by_id.return_value = Mock(spec=Account)
+
+        state = {
+            'context': 'prompt_withdraw_info',
+        }
+
+        store = Mock(spec=Store)
+        store.state = {**state, 'error': 'some_error'}
+
+        prompter = WithdrawPrompter(store, accounts_renderer, get_user_account_by_id)
+        done = prompter.prompt(state)
+
+        self.assertTrue(done)
+
+        print_calls = [
+            call("Which account would you like to withdraw from?"),
+            call('account info'),
+            call("How much money would you like to withdraw?"),
+            call("Getting your money..."),
+            call(f"I could not get your money. some_error")
+        ]
+
+        print.assert_has_calls(print_calls)
+
+        input_calls = [call("> "), call("> ")]
+        input.assert_has_calls(input_calls)
+
+    @patch.multiple('prompters', input=DEFAULT, print=DEFAULT, sleep=DEFAULT, get_user_account_by_id=DEFAULT)
+    def test_withdraw_validates_account_id(self, input, print, sleep, get_user_account_by_id):
+        input.side_effect = ['2', '1', '10']
+
+        accounts_renderer = Mock()
+        accounts_renderer.render_table_from_state.return_value = 'account info'
+        accounts_renderer.render_by_id.return_value = 'single account'
+        get_user_account_by_id.side_effect = [None, Mock(Account)]
+
+        state = {
+            'context': 'prompt_withdraw_info',
+        }
+
+        store = Mock(spec=Store)
+        store.state = state
+
+        prompter = WithdrawPrompter(store, accounts_renderer, get_user_account_by_id)
+        done = prompter.prompt(state)
+
+        self.assertTrue(done)
+
+        print_calls = [
+            call("Which account would you like to withdraw from?"),
+            call('account info'),
+            call("That account does not exist, please pick a valid one"),
+            call("Which account would you like to withdraw from?"),
+            call('account info'),
+            call("How much money would you like to withdraw?"),
+            call("Getting your money..."),
+            call(f"You've withdrawn $10")
+        ]
+
+        print.assert_has_calls(print_calls)
+
+        input_calls = [call("> "), call("> ")]
+        input.assert_has_calls(input_calls)

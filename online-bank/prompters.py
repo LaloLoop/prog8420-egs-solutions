@@ -1,6 +1,7 @@
 from time import sleep
 
 from render import AccountsRenderer
+from res_selectors import get_user_account_by_id
 
 
 class Prompter:
@@ -96,9 +97,10 @@ class MenuPrompter(Prompter):
 
 
 class DepositPrompter(Prompter):
-    def __init__(self, store, accounts_renderer=AccountsRenderer()):
+    def __init__(self, store, accounts_renderer=AccountsRenderer(), account_selector=get_user_account_by_id):
         self.store = store
         self.accounts_renderer = accounts_renderer
+        self.account_selector = account_selector
 
     def prompt(self, state):
         if state['context'] != 'prompt_deposit_info':
@@ -115,6 +117,14 @@ class DepositPrompter(Prompter):
 
                 try:
                     account_id = int(input("> "))
+
+                    account = self.account_selector(state, account_id=account_id)
+
+                    if account is None:
+                        print("That account does not exist, please pick a valid one")
+                        account_id = 0
+                        continue
+
                 except ValueError:
                     print('That\'s not a valid ID, have a look again')
                     input_error = True
@@ -148,12 +158,78 @@ class DepositPrompter(Prompter):
         return True
 
 
+class WithdrawPrompter(Prompter):
+    def __init__(self, store, accounts_renderer=AccountsRenderer(), account_selector=get_user_account_by_id):
+        self.store = store
+        self.accounts_renderer = accounts_renderer
+        self.account_selector = account_selector
+
+    def prompt(self, state):
+        if 'context' in state and state['context'] != 'prompt_withdraw_info':
+            return False
+
+        account_id = 0
+        amount = 0
+
+        input_error = True
+
+        while input_error:
+            if account_id == 0:
+
+                print("Which account would you like to withdraw from?")
+                print(self.accounts_renderer.render_table_from_state(state))
+
+                try:
+                    account_id = int(input("> "))
+
+                    account = self.account_selector(state, account_id=account_id)
+                    if account is None:
+                        print("That account does not exist, please pick a valid one")
+                        account_id = 0
+                        continue
+
+                except ValueError:
+                    print('That\'s not a numeric ID, have a look again')
+                    input_error = True
+                    continue
+
+            print("How much money would you like to withdraw?")
+
+            try:
+
+                amount = int(input("> "))
+
+                if amount <= 0:
+                    print("Your amount has to be greater than 0")
+                    continue
+
+            except ValueError:
+                print("Hold your horses, please give a number.")
+                input_error = True
+                continue
+
+            input_error = False
+
+        print("Getting your money...")
+        self.store.dispatch({'type': 'account/withdraw', 'payload': {'id': account_id, 'amount': amount}})
+
+        sleep(1)
+
+        if 'error' not in self.store.state or not self.store.state['error']:
+            print(f"You've withdrawn ${amount}")
+        else:
+            print(f"I could not get your money. {self.store.state['error']}")
+
+        return True
+
+
 class MainPrompter(Prompter):
     def __init__(self, store, prompters=None):
         if prompters is None:
             prompters = [
                 UserInfoPrompter(store),
                 DepositPrompter(store),
+                WithdrawPrompter(store),
                 MenuPrompter(store),
                 Prompter()
             ]
