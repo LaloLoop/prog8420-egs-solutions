@@ -40,3 +40,26 @@ The main app can be executed with the following command.
 ```shell
 python main.py
 ```
+
+## App concepts
+
+The app is built with the following entities in mind:
+
+* **Store**: Manages the application state, mainly calling to the business rules and UI.
+* **Reducers**: Control the overall execution of the application, with events being dispatched to the store. They are meant 
+to be pure functions, that is, given a certain state and action, they always produce the same output state.
+* **Actions**: Actions are message objects, meaning that they carry a purpose and a body to help alter the application 
+state.
+* **Renderers**: Components only outputting a string based on the current application's state.
+* **Prompters**: Same as Renderers but with the ability to obtain user input, format it and validate it.
+* **Entities**: Contain the business rules to be called by the _Reducers_.
+
+## Adding new functionality
+
+To add new functionality consisting of a business rule and an interface to allow the user to execute it is generally 
+done in the following way:
+
+1. Add reducer to call the underlying entities and business rules.
+2. Add reducer to modify the prompters, e.g. disable the menu and enable the new prompter.
+3. Modify / add prompters to allow the users to interact with the new feature.
+4. Dispatch actions within existing prompters or add them to the main menu as needed.

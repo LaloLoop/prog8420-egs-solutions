@@ -31,6 +31,16 @@ def user_reducer(state, action):
     return state
 
 
+def __find_account(state, action):
+    account_id = action['payload']['id']
+    account_found = None
+    for account in state['session'].accounts:
+        if account.id == account_id:
+            account_found = account
+            break
+    return account_found
+
+
 def bank_reducer(state, action):
     act_type = action['type']
 
@@ -42,15 +52,24 @@ def bank_reducer(state, action):
         return {**state, 'account_created': True}
 
     elif act_type == 'account/deposit':
-        account_id = action['payload']['id']
         amount = action['payload']['amount']
-        account_found = None
-        for account in state['session'].accounts:
-            if account.id == account_id:
-                account_found = account
-                break
+        account_found = __find_account(state, action)
         if account_found is not None:
             account_found.deposit(amount)
+
+    elif act_type == 'account/withdraw':
+        amount = action['payload']['amount']
+        account_found = __find_account(state, action)
+
+        if account_found is not None:
+            balance = account_found.balance
+            if balance == 0:
+                return {**state, 'error': f"Not enough funds to withdraw ${amount}"}
+            elif 0 < balance < amount:
+                return {**state, 'error': f"Uh oh, you can withdraw at most ${balance}"}
+            else:
+                account_found.withdraw(amount)
+                return {**state, 'error': ''}
 
     return state
 
@@ -73,6 +92,15 @@ def account_created(state, action):
         return state
 
     return {**state, 'account_created': False}
+
+
+def error_reducer(state, action):
+    act_type = action['type']
+
+    if act_type == 'account/withdraw':
+        return state
+
+    return {**state, 'error': ''}
 
 
 def menu_reducer(state, action):
@@ -105,6 +133,13 @@ def menu_reducer(state, action):
             'menu': {}
         }
 
+    elif act_type == 'account/prompt_withdraw_info':
+        return {
+            **state,
+            'context': 'prompt_withdraw_info',
+            'menu': {}
+        }
+
     elif act_type == 'user/create':
         return {
             **state,
@@ -119,7 +154,7 @@ def menu_reducer(state, action):
             }
         }
 
-    elif act_type in ['account/create', 'account/deposit']:
+    elif act_type in ['account/create', 'account/deposit', 'account/withdraw']:
         return {
             **state,
             'context': 'single_account',
@@ -147,5 +182,6 @@ STATE_MAPPING = {
     'session': user_reducer,
     'exit': exit_reducer,
     'account_created': account_created,
-    'menu': menu_reducer
+    'menu': menu_reducer,
+    'error': error_reducer,
 }
