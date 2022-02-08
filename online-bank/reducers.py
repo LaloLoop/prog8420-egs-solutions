@@ -31,8 +31,7 @@ def user_reducer(state, action):
     return state
 
 
-def __find_account(state, action):
-    account_id = action['payload']['id']
+def __find_account(state, account_id):
     account_found = None
     for account in state['session'].accounts:
         if account.id == account_id:
@@ -53,13 +52,13 @@ def bank_reducer(state, action):
 
     elif act_type == 'account/deposit':
         amount = action['payload']['amount']
-        account_found = __find_account(state, action)
+        account_found = __find_account(state, action['payload']['id'])
         if account_found is not None:
             account_found.deposit(amount)
 
     elif act_type == 'account/withdraw':
         amount = action['payload']['amount']
-        account_found = __find_account(state, action)
+        account_found = __find_account(state, action['payload']['id'])
 
         if account_found is not None:
             balance = account_found.balance
@@ -70,6 +69,27 @@ def bank_reducer(state, action):
             else:
                 account_found.withdraw(amount)
                 return {**state, 'error': ''}
+
+    elif act_type == 'account/transfer':
+        payload = action['payload']
+        source_acct_id = payload['source_acct_id']
+        dest_acct_id = payload['dest_acct_id']
+        amount = payload['amount']
+
+        source_found = __find_account(state, source_acct_id)
+        dest_found = __find_account(state, dest_acct_id)
+
+        if source_found is not None and dest_found is not None:
+            transferred = source_found.transfer(dest_found, amount)
+
+            if transferred == 0:
+                return {**state, 'error': 'Could not perform transfer, insufficient funds'}
+
+            return {**state, 'error': ''}
+        elif source_found is None:
+            return {**state, 'error': f'Could not find source account with id: {source_acct_id}'}
+        elif dest_found is None:
+            return {**state, 'error': f'Could not find destination account with id: {dest_acct_id}'}
 
     return state
 

@@ -185,6 +185,93 @@ class TestBankReducer(TestCase):
 
         self.assertEqual({'session': user, 'error': ''}, state)
 
+    def test_transfer(self):
+        user = Mock(spec=User)
+        account1 = Mock(spec=Account)
+        account1.id = 1
+        account1.balance = 100
+
+        account2 = Mock(spec=Account)
+        account2.id = 2
+        account2.balance = 200
+        account2.transfer.return_value = 100
+
+        amount = 100
+
+        user.accounts = [account1, account2]
+
+        state = {
+            'session': user
+        }
+
+        action = {'type': 'account/transfer', 'payload': {'source_acct_id': 2, 'amount': amount, 'dest_acct_id': 1}}
+
+        bank_reducer(state, action)
+
+        account2.transfer.assert_called_with(account1, amount)
+
+    def test_transfer_fails_with_account_not_found(self):
+        user = Mock(spec=User)
+        account1 = Mock(spec=Account)
+        account1.id = 1
+
+        user.accounts = [account1]
+
+        state = {
+            'session': user
+        }
+
+        action = {
+            'type': 'account/transfer',
+            'payload': {'source_acct_id': 2, 'dest_acct_id': 1, 'amount': 100}
+        }
+
+        new_state = bank_reducer(state, action)
+
+        self.assertEqual(new_state, {**state, 'error': 'Could not find source account with id: 2'})
+
+        action = {
+            'type': 'account/transfer',
+            'payload': {
+                'source_acct_id': 1,
+                'dest_acct_id': 2,
+                'amount': 100
+            }
+        }
+
+        new_state = bank_reducer(state, action)
+
+        self.assertEqual(new_state, {**state, 'error': 'Could not find destination account with id: 2'})
+
+    def test_transfer_fails_with_insufficient_funds(self):
+        account1 = Mock(spec=Account)
+        account1.id = 1
+        account1.transfer.return_value = 0
+        account2 = Mock(spec=Account)
+        account2.id = 2
+
+        user = Mock(spec=User)
+        user.accounts = [account1, account2]
+
+        amount = 200
+
+        state = {
+            'session': user
+        }
+
+        action = {
+            'type': 'account/transfer',
+            'payload': {
+                'source_acct_id': 1,
+                'dest_acct_id': 2,
+                'amount': amount
+            }
+        }
+
+        new_state = bank_reducer(state, action)
+
+        self.assertEqual(new_state, {**state, 'error': 'Could not perform transfer, insufficient funds'})
+
 
 class TestUserReducer(TestCase):
 
