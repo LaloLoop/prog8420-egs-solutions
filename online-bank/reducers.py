@@ -2,6 +2,35 @@ import functools
 
 from entities import Bank
 
+BASE_MENU = {
+    'deposit': {
+        'type': 'account/prompt_deposit_info'
+    },
+    'withdraw': {
+        'type': 'account/prompt_withdraw_info'
+    },
+    'create_account': {
+        'type': 'account/create'
+    }
+}
+
+SINGLE_ACCOUNT_MENU = {
+    **BASE_MENU,
+    'exit': {
+        'type': 'program/terminate'
+    }
+}
+
+MULTIPLE_ACCOUNT_MENU = {
+    **BASE_MENU,
+    'transfer': {
+        'type': 'account/prompt_transfer_info'
+    },
+    'exit': {
+        'type': 'program/terminate'
+    }
+}
+
 
 def main_reducer(state, action):
     return functools.reduce(
@@ -76,6 +105,9 @@ def bank_reducer(state, action):
         dest_acct_id = payload['dest_acct_id']
         amount = payload['amount']
 
+        if source_acct_id == dest_acct_id:
+            return {**state, 'error': 'Source and destination account must be different'}
+
         source_found = __find_account(state, source_acct_id)
         dest_found = __find_account(state, dest_acct_id)
 
@@ -117,7 +149,7 @@ def account_created(state, action):
 def error_reducer(state, action):
     act_type = action['type']
 
-    if act_type == 'account/withdraw':
+    if act_type in ['account/withdraw', 'account/transfer']:
         return state
 
     return {**state, 'error': ''}
@@ -160,6 +192,13 @@ def menu_reducer(state, action):
             'menu': {}
         }
 
+    elif act_type == 'account/prompt_transfer_info':
+        return {
+            **state,
+            'context': 'prompt_transfer_info',
+            'menu': {}
+        }
+
     elif act_type == 'user/create':
         return {
             **state,
@@ -174,25 +213,22 @@ def menu_reducer(state, action):
             }
         }
 
-    elif act_type in ['account/create', 'account/deposit', 'account/withdraw']:
-        return {
-            **state,
-            'context': 'single_account',
-            'menu': {
-                'deposit': {
-                    'type': 'account/prompt_deposit_info'
-                },
-                'withdraw': {
-                    'type': 'account/prompt_withdraw_info'
-                },
-                'create_account': {
-                    'type': 'account/create'
-                },
-                'exit': {
-                    'type': 'program/terminate'
-                }
+    elif act_type in ['account/create', 'account/deposit', 'account/withdraw', 'account/transfer']:
+        num_accounts = len(state['session'].accounts)
+        if num_accounts > 1:
+
+            return {
+                **state,
+                'context': 'multiple_account',
+                'menu': MULTIPLE_ACCOUNT_MENU
             }
-        }
+
+        elif num_accounts == 1:
+            return {
+                **state,
+                'context': 'single_account',
+                'menu': SINGLE_ACCOUNT_MENU
+            }
 
     return state
 

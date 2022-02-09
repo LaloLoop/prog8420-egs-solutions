@@ -134,6 +134,12 @@ class DepositPrompter(Prompter):
 
             try:
                 amount = int(input("> "))
+
+                if amount <= 0:
+                    print("The amount has to be greater than 0")
+                    amount = 0
+                    continue
+
             except ValueError:
                 print("Wait a minute, that does not look like a number.")
                 input_error = True
@@ -223,6 +229,96 @@ class WithdrawPrompter(Prompter):
         return True
 
 
+class TransferPrompter(Prompter):
+    def __init__(self, store, accounts_renderer=AccountsRenderer(), selector=get_user_account_by_id):
+        self.store = store
+        self.accounts_renderer = accounts_renderer
+        self.account_selector = selector
+
+    def prompt(self, state):
+        if state['context'] != 'prompt_transfer_info':
+            return False
+
+        input_error = True
+
+        source_acct_id = 0
+        amount = 0
+        dest_acct_id = 0
+
+        while input_error:
+            if source_acct_id == 0:
+                print("Please provide the source account")
+                print(self.accounts_renderer.render_table_from_state(state))
+
+                try:
+                    source_acct_id = int(input("> "))
+                    account = self.account_selector(state, source_acct_id)
+                    if account is None:
+                        print("Sorry, that account does not exist, please choose a valid ID")
+                        source_acct_id = 0
+                        continue
+
+                except ValueError:
+                    print("Please provide a numeric ID")
+                    continue
+
+            if amount == 0:
+                print("How much money do you want to transfer?")
+                try:
+                    amount = int(input("> "))
+
+                    if amount < 0:
+                        print("I see what you did there. The amount cannot be negative")
+                        amount = 0
+                        continue
+                    elif amount == 0:
+                        print("Your amount has to be greater than 0")
+                        amount = 0
+                        continue
+
+                except ValueError:
+                    print("Please provide a numeric amount")
+                    continue
+
+            if dest_acct_id == 0:
+                print("What\'s the destination account?")
+                print(self.accounts_renderer.render_table_from_state(state))
+                try:
+                    dest_acct_id = int(input("> "))
+
+                    account = self.account_selector(state, dest_acct_id)
+                    if account is None:
+                        print("Sorry, that account does not exist, please choose a valid ID")
+                        dest_acct_id = 0
+                        continue
+
+                except ValueError:
+                    print("Please provide a numeric ID")
+                    continue
+
+            input_error = False
+
+        print("Working on it...")
+
+        self.store.dispatch({
+            'type': 'account/transfer',
+            'payload': {
+                'source_acct_id': source_acct_id,
+                'dest_acct_id': dest_acct_id,
+                'amount': amount
+            }
+        })
+
+        sleep(1)
+
+        if 'error' not in self.store.state or not self.store.state['error']:
+            print("Done! the money has been transferred")
+        else:
+            print(f"I could not complete your transfer. {self.store.state['error']}")
+
+        return True
+
+
 class MainPrompter(Prompter):
     def __init__(self, store, prompters=None):
         if prompters is None:
@@ -230,6 +326,7 @@ class MainPrompter(Prompter):
                 UserInfoPrompter(store),
                 DepositPrompter(store),
                 WithdrawPrompter(store),
+                TransferPrompter(store),
                 MenuPrompter(store),
                 Prompter()
             ]

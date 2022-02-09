@@ -2,7 +2,8 @@ from unittest import TestCase, mock
 from unittest.mock import call, Mock, patch, DEFAULT
 
 from entities import User, Account
-from prompters import Prompter, UserInfoPrompter, MainPrompter, MenuPrompter, DepositPrompter, WithdrawPrompter
+from prompters import Prompter, UserInfoPrompter, MainPrompter, MenuPrompter, DepositPrompter, WithdrawPrompter, \
+    TransferPrompter
 from render import AccountsRenderer
 from store import Store
 
@@ -298,7 +299,7 @@ class TestDepositPrompter(TestCase):
 
     @patch.multiple('prompters', input=DEFAULT, print=DEFAULT, sleep=DEFAULT)
     def test_deposit_validates_numeric_input(self, input, print, sleep):
-        input.side_effect = ['no', '1', '', '300']
+        input.side_effect = ['no', '1', '', '-300', '300']
 
         accounts_renderer = Mock()
         accounts_renderer.render_table_from_state.return_value = 'account info'
@@ -323,6 +324,8 @@ class TestDepositPrompter(TestCase):
             call('account info'),
             call('Great! How much money do you want to deposit?'),
             call("Wait a minute, that does not look like a number."),
+            call("Great! How much money do you want to deposit?"),
+            call("The amount has to be greater than 0"),
             call("Great! How much money do you want to deposit?"),
             call('Making deposit...'),
             call("Here's your account detail"),
@@ -461,7 +464,7 @@ class TestWithdrawPrompter(TestCase):
     def test_withdraw_validates_numeric_input(self, input, print, sleep, get_user_account_by_id):
         input.side_effect = ['hi', '1', '', '100']
 
-        accounts_renderer = Mock()
+        accounts_renderer = Mock(spec=AccountsRenderer)
         accounts_renderer.render_table_from_state.return_value = 'account info'
         accounts_renderer.render_by_id.return_value = 'single account'
         get_user_account_by_id.return_value = Mock(spec=Account)
@@ -558,7 +561,7 @@ class TestWithdrawPrompter(TestCase):
             call('account info'),
             call("How much money would you like to withdraw?"),
             call("Getting your money..."),
-            call(f"I could not get your money. some_error")
+            call("I could not get your money. some_error")
         ]
 
         print.assert_has_calls(print_calls)
@@ -602,3 +605,228 @@ class TestWithdrawPrompter(TestCase):
 
         input_calls = [call("> "), call("> ")]
         input.assert_has_calls(input_calls)
+
+        account_by_id_calls = [
+            call(state, account_id=2),
+            call(state, account_id=1)
+        ]
+
+        get_user_account_by_id.assert_has_calls(account_by_id_calls)
+
+
+class TestTransferPrompter(TestCase):
+
+    @patch.multiple('prompters', input=DEFAULT, print=DEFAULT, sleep=DEFAULT, get_user_account_by_id=DEFAULT)
+    def test_only_prompts_on_prompt_transfer_info(self, input, print, sleep, get_user_account_by_id):
+        state = {
+            'context': 'test'
+        }
+
+        accounts_renderer = Mock(spec=AccountsRenderer)
+        store = Mock(spec=Store)
+
+        prompter = TransferPrompter(store, accounts_renderer, get_user_account_by_id)
+
+        done = prompter.prompt(state)
+
+        self.assertFalse(done)
+        accounts_renderer.render_table_from_state.assert_not_called()
+        store.dispatch.assert_not_called()
+        input.assert_not_called()
+        print.assert_not_called()
+        sleep.assert_not_called()
+        get_user_account_by_id.assert_not_called()
+
+    @patch.multiple('prompters', input=DEFAULT, print=DEFAULT, sleep=DEFAULT, get_user_account_by_id=DEFAULT)
+    def test_transfer_flow(self, input, print, sleep, get_user_account_by_id):
+        input.side_effect = ['1', '100', '2']
+        account_str = "accounts_summary"
+
+        accounts_renderer = Mock(spec=AccountsRenderer)
+        accounts_renderer.render_table_from_state.return_value = account_str
+        get_user_account_by_id.return_value = Mock(spec=Account)
+
+        store = Mock(spec=Store)
+
+        state = {
+            'context': 'prompt_transfer_info'
+        }
+
+        store.state = state
+
+        prompter = TransferPrompter(store, accounts_renderer, get_user_account_by_id)
+        done = prompter.prompt(state)
+
+        self.assertTrue(done)
+
+        print_calls = [
+            call('Please provide the source account'),
+            call(account_str),
+            call('How much money do you want to transfer?'),
+            call('What\'s the destination account?'),
+            call(account_str),
+            call('Working on it...'),
+            call('Done! the money has been transferred')
+        ]
+        print.assert_has_calls(print_calls)
+
+        input_calls = [call("> "), call("> "), call("> ")]
+        input.assert_has_calls(input_calls)
+
+        store.dispatch.assert_called_with({
+            'type': 'account/transfer',
+            'payload': {
+                'source_acct_id': 1,
+                'dest_acct_id': 2,
+                'amount': 100
+            }
+        })
+
+        sleep.assert_called_once_with(1)
+
+    @patch.multiple('prompters', input=DEFAULT, print=DEFAULT, sleep=DEFAULT, get_user_account_by_id=DEFAULT)
+    def test_transfer_validates_numeric_input(self, input, print, sleep, get_user_account_by_id):
+        input.side_effect = ['blah', '1', 'hundred', '-100', '0', '100', 'two', '2']
+        input_calls = [call("> "), call("> "), call("> "), call("> "), call("> "), call("> ")]
+        print_calls = [
+            call('Please provide the source account'),
+            call("accounts_info"),
+            call("Please provide a numeric ID"),
+            call('Please provide the source account'),
+            call("accounts_info"),
+            call('How much money do you want to transfer?'),
+            call("Please provide a numeric amount"),
+            call('How much money do you want to transfer?'),
+            call('I see what you did there. The amount cannot be negative'),
+            call('How much money do you want to transfer?'),
+            call('Your amount has to be greater than 0'),
+            call('How much money do you want to transfer?'),
+            call('What\'s the destination account?'),
+            call("accounts_info"),
+            call("Please provide a numeric ID"),
+            call('What\'s the destination account?'),
+            call("accounts_info"),
+            call('Working on it...'),
+            call('Done! the money has been transferred')
+        ]
+
+        accounts_renderer = Mock(spec=AccountsRenderer)
+        accounts_renderer.render_table_from_state.return_value='accounts_info'
+        get_user_account_by_id.return_value = Mock(spec=Account)
+
+        store = Mock(spec=Store)
+
+        state = {
+            'context': 'prompt_transfer_info'
+        }
+
+        store.state = state
+
+        prompter = TransferPrompter(store, accounts_renderer, get_user_account_by_id)
+        done = prompter.prompt(state)
+
+        self.assertTrue(done)
+
+        print.assert_has_calls(print_calls)
+        input.assert_has_calls(input_calls)
+
+        store.dispatch.assert_called_with({
+            'type': 'account/transfer',
+            'payload': {
+                'source_acct_id': 1,
+                'dest_acct_id': 2,
+                'amount': 100
+            }
+        })
+
+        sleep.assert_called_once_with(1)
+
+    @patch.multiple('prompters', input=DEFAULT, print=DEFAULT, sleep=DEFAULT, get_user_account_by_id=DEFAULT)
+    def test_transfer_validates_existing_account(self, input, print, sleep, get_user_account_by_id):
+        input.side_effect = ['3', '2', '10', '4', '1']
+
+        accounts_renderer = Mock()
+        accounts_renderer.render_table_from_state.return_value = 'accounts info'
+        get_user_account_by_id.side_effect = [None, Mock(spec=Account), None, Mock(spec=Account)]
+
+        state = {
+            'context': 'prompt_transfer_info'
+        }
+
+        account_by_id_calls = [
+            call(state, 3),
+            call(state, 2),
+            call(state, 4),
+            call(state, 1),
+        ]
+
+        store = Mock(spec=Store)
+        store.state = state
+
+        prompter = TransferPrompter(store, accounts_renderer, get_user_account_by_id)
+        done = prompter.prompt(state)
+
+        self.assertTrue(done)
+
+        print_calls = [
+            call('Please provide the source account'),
+            call("accounts info"),
+            call("Sorry, that account does not exist, please choose a valid ID"),
+            call('Please provide the source account'),
+            call("accounts info"),
+            call('How much money do you want to transfer?'),
+            call('What\'s the destination account?'),
+            call("accounts info"),
+            call("Sorry, that account does not exist, please choose a valid ID"),
+            call('What\'s the destination account?'),
+            call("accounts info"),
+            call('Working on it...'),
+            call('Done! the money has been transferred')
+        ]
+        input_calls = [
+            call("> "),
+            call("> "),
+            call("> "),
+            call("> "),
+            call("> ")
+        ]
+
+        print.assert_has_calls(print_calls)
+        input.assert_has_calls(input_calls)
+
+        get_user_account_by_id.assert_has_calls(account_by_id_calls)
+
+    @patch.multiple('prompters', input=DEFAULT, print=DEFAULT, sleep=DEFAULT, get_user_account_by_id=DEFAULT)
+    def test_transfer_shows_errors_if_any(self, input, print, sleep, get_user_account_by_id):
+        input.side_effect = ['1', '100', '2']
+        accounts_renderer = Mock(spec=AccountsRenderer)
+        accounts_renderer.render_table_from_state.return_value = 'accounts info'
+        get_user_account_by_id.side_effect = [Mock(spec=Account), Mock(spec=Account)]
+
+        state = {
+            'context': 'prompt_transfer_info',
+        }
+
+        store = Mock(spec=Store)
+        store.state = {**state, 'error': 'some_error'}
+
+        prompter = TransferPrompter(store, accounts_renderer, get_user_account_by_id)
+        done = prompter.prompt(state)
+
+        self.assertTrue(done)
+
+        print_calls = [
+            call('Please provide the source account'),
+            call("accounts info"),
+            call('How much money do you want to transfer?'),
+            call('What\'s the destination account?'),
+            call("accounts info"),
+            call('Working on it...'),
+            call('I could not complete your transfer. some_error')
+        ]
+
+        print.assert_has_calls(print_calls)
+
+        input_calls = [call("> "), call("> ")]
+        input.assert_has_calls(input_calls)
+

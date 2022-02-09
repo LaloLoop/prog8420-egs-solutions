@@ -64,6 +64,14 @@ class TestAccount(TestCase):
         self.assertEqual(account.balance, 230)
         self.assertEqual(deposited, 230)
 
+    def test_deposit_cannot_be_negative(self):
+        account = Account()
+        account.balance = 200
+        deposited = account.deposit(-200)
+
+        self.assertEqual(account.balance, 200)
+        self.assertEqual(deposited, 0)
+
     def test_deposit_accumulates(self):
         account = Account()
 
@@ -78,6 +86,14 @@ class TestAccount(TestCase):
         account.withdraw(50)
 
         self.assertEqual(account.balance, 50)
+
+    def test_withdraw_cannot_be_negative(self):
+        account = Account(balance=100)
+
+        withdrawn = account.withdraw(-100)
+
+        self.assertEqual(account.balance, 100)
+        self.assertEqual(withdrawn, 0)
 
     def test_withdraw_cannot_leave_negative_balance(self):
         account = Account(balance=200)
