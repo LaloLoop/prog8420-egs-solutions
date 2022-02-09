@@ -44,11 +44,19 @@ class MenuRenderer(Renderer):
 
 class AccountsRenderer(Renderer):
     def render(self, state):
-        if state['account_created']:
-            account = state['session'].accounts[-1]
-            return self.render_table([account])
 
-        return ""
+        result = ""
+
+        if state['account_created']:
+            result = "\nYour account was successfully created\n"
+
+        context = state['context']
+        if context == 'no_accounts':
+            result = "You have 0 accounts\n"
+        elif context in ('single_account', 'multiple_account'):
+            result += self.render_table_from_state(state) + "\n"
+
+        return result
 
     def render_by_id(self, state, account_id):
         found = None
@@ -69,6 +77,8 @@ class AccountsRenderer(Renderer):
         for account in accounts:
             result += f"\n| {account.id} | {account.balance} |"
 
+        result += '\n'
+
         return result
 
 
@@ -76,8 +86,8 @@ class MainRenderer(Renderer):
     def __init__(self, renderers=None):
         if renderers is None:
             renderers = [
-                AccountsRenderer(),
                 WelcomeRenderer(),
+                AccountsRenderer(),
                 MenuRenderer(),
             ]
 

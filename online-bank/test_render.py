@@ -107,6 +107,7 @@ class TestAccountsRenderer(TestCase):
         user.accounts = [account]
 
         state = {
+            'context': 'some',
             'session': user,
             'account_created': False
         }
@@ -117,11 +118,60 @@ class TestAccountsRenderer(TestCase):
         self.assertEqual("", result)
 
         state['account_created'] = True
+        state['context'] = 'single_account'
+
+        result = renderer.render(state)
+
+        self.assertEqual(f"\nYour account was successfully created\n\n| Acct No. | Balance |\n| {account.id} | "
+                         f"{account.balance} |\n\n", result)
+
+    def test_render_accounts(self):
+        user = Mock(spec=User)
+        user.accounts = []
+
+        state = {
+            'session': user,
+            'context': 'no_accounts',
+            'account_created': False
+        }
+
+        account = Mock(spec=Account)
+        account.id = 1
+        account.balance = 0
+        user = Mock(spec=User)
+
+        renderer = AccountsRenderer()
+        result = renderer.render(state)
+
+        self.assertEqual("You have 0 accounts\n", result)
+
+        user.accounts = [account]
+
+        state = {
+            'session': user,
+            'context': 'single_account',
+            'account_created': False
+        }
 
         result = renderer.render(state)
 
         self.assertEqual(f"\n| Acct No. | Balance |\n| {account.id} | "
-                         f"{account.balance} |", result)
+                         f"{account.balance} |\n\n", result)
+
+        account2 = Mock(spec=Account)
+        account2.id = 2
+        account2.balance = 0
+        user.accounts = [account, account2]
+
+        state = {
+            'session': user,
+            'context': 'multiple_account',
+            'account_created': False
+        }
+
+        result = renderer.render(state)
+
+        self.assertEqual(f"\n| Acct No. | Balance |\n| 1 | 0 |\n| 2 | 0 |\n\n", result)
 
     def test_render_by_id(self):
         user = Mock(spec=User)
@@ -135,7 +185,7 @@ class TestAccountsRenderer(TestCase):
         result = renderer.render_by_id(state, account_id=2)
 
         account2 = user.accounts[1]
-        self.assertEqual(f"\n| Acct No. | Balance |\n| {account2.id} | {account2.balance} |", result)
+        self.assertEqual(f"\n| Acct No. | Balance |\n| {account2.id} | {account2.balance} |\n", result)
 
     def test_render_table(self):
         accounts = [Account(1, 100), Account(2, 200)]
@@ -143,7 +193,7 @@ class TestAccountsRenderer(TestCase):
         renderer = AccountsRenderer()
         result = renderer.render_table(accounts)
 
-        self.assertEqual(f"\n| Acct No. | Balance |\n| 1 | 100 |\n| 2 | 200 |", result)
+        self.assertEqual(f"\n| Acct No. | Balance |\n| 1 | 100 |\n| 2 | 200 |\n", result)
 
     def test_render_table_from_state(self):
         user = Mock(spec=User)
@@ -153,4 +203,4 @@ class TestAccountsRenderer(TestCase):
         renderer = AccountsRenderer()
         result = renderer.render_table_from_state({'session': user})
 
-        self.assertEqual(f"\n| Acct No. | Balance |\n| 1 | 100 |\n| 2 | 200 |", result)
+        self.assertEqual(f"\n| Acct No. | Balance |\n| 1 | 100 |\n| 2 | 200 |\n", result)
