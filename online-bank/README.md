@@ -35,7 +35,19 @@ Python 3.8.9 is being used for the development.
 
 ## Running the main application
 
-The main app can be executed with the following command.
+The easiest way to run the app is by downloading the built artifact available from the main repo:
+
+```shell
+docker pull ghcr.io/laloloop/scottys-bank:main
+```
+
+If Docker is available in your machine, you can run it by building the docker image locally.
+```shell
+docker build -t scottys-bank .
+docker run -it scottys-bank
+```
+
+If you prefer python in your local machine, it be executed with the following command.
 
 ```shell
 python main.py
@@ -63,3 +75,7 @@ done in the following way:
 2. Add reducer to modify the prompters, e.g. disable the menu and enable the new prompter.
 3. Modify / add prompters to allow the users to interact with the new feature.
 4. Dispatch actions within existing prompters or add them to the main menu as needed.
+
+## Author
+
+Eduardo Gutiérrez Silva (LaloLoop)
