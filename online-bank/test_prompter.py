@@ -62,7 +62,7 @@ class TestUserInfoPrompter(TestCase):
 
     @patch.multiple('prompters', input=DEFAULT, print=DEFAULT, create=True)
     def test_prompter_waits_for_valid_input(self, input, print):
-        input.side_effect = ['', 'Eduardo', '', 'Gutierrez']
+        input.side_effect = ['', "''", "3du4rd0", "-=", 'Eduardo', '', "''", "Gut1err3z", "-+", 'Gutierrez']
 
         state = {
             'context': 'prompt_user_info'
@@ -73,11 +73,17 @@ class TestUserInfoPrompter(TestCase):
         prompter = UserInfoPrompter(store=store)
         done = prompter.prompt(state)
 
-        self.assertEqual(4, input.call_count)
+        self.assertEqual(10, input.call_count)
 
         calls = [
             call('You should enter your name, otherwise, how will I know how to call you?'),
-            call("There's more than one \"Eduardo\" in this world, please tell us your last name.")
+            call("Your name should only contain at least 4 English character letters"),
+            call("Your name should only contain at least 4 English character letters"),
+            call("Your name should only contain at least 4 English character letters"),
+            call("There's more than one \"Eduardo\" in this world, please tell us your last name."),
+            call("Your Last name should only contain at least 4 English character letters"),
+            call("Your Last name should only contain at least 4 English character letters"),
+            call("Your Last name should only contain at least 4 English character letters"),
         ]
 
         print.assert_has_calls(calls)

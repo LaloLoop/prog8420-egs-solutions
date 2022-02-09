@@ -1,3 +1,4 @@
+import re
 from time import sleep
 
 from render import AccountsRenderer
@@ -30,11 +31,20 @@ class UserInfoPrompter(Prompter):
             if name == '':
                 print("You should enter your name, otherwise, how will I know how to call you?")
                 continue
+            elif not re.match("[a-zA-Z]{4,}", name):
+                print("Your name should only contain at least 4 English character letters")
+                name = ""
+                continue
 
             last_name = input('And, your last name? ')
 
             if last_name == '':
                 print(f"There's more than one \"{name}\" in this world, please tell us your last name.")
+
+            elif not re.match("[a-zA-Z]{4,}", last_name):
+                print("Your Last name should only contain at least 4 English character letters")
+                last_name = ""
+
 
         self.store.dispatch({
             'type': 'user/create',
