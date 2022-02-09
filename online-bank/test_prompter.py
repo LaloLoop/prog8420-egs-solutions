@@ -449,7 +449,7 @@ class TestWithdrawPrompter(TestCase):
             call(accounts_str),
             call("How much money would you like to withdraw?"),
             call("Getting your money..."),
-            call("You've withdrawn $100")
+            call("You've withdrawn $100.0")
         ]
         print.assert_has_calls(print_calls)
 
@@ -497,7 +497,7 @@ class TestWithdrawPrompter(TestCase):
             call("Hold your horses, please give a number."),
             call("How much money would you like to withdraw?"),
             call("Getting your money..."),
-            call("You've withdrawn $100")
+            call("You've withdrawn $100.0")
         ]
 
         print.assert_has_calls(print_calls)
@@ -533,7 +533,7 @@ class TestWithdrawPrompter(TestCase):
             call("Your amount has to be greater than 0"),
             call("How much money would you like to withdraw?"),
             call("Getting your money..."),
-            call("You've withdrawn $100")
+            call("You've withdrawn $100.0")
         ]
 
         print.assert_has_calls(print_calls)
@@ -604,7 +604,7 @@ class TestWithdrawPrompter(TestCase):
             call('account info'),
             call("How much money would you like to withdraw?"),
             call("Getting your money..."),
-            call(f"You've withdrawn $10")
+            call(f"You've withdrawn $10.0")
         ]
 
         print.assert_has_calls(print_calls)

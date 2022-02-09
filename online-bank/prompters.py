@@ -45,7 +45,6 @@ class UserInfoPrompter(Prompter):
                 print("Your Last name should only contain at least 4 English character letters")
                 last_name = ""
 
-
         self.store.dispatch({
             'type': 'user/create',
             'payload': {
@@ -143,7 +142,7 @@ class DepositPrompter(Prompter):
             print("Great! How much money do you want to deposit?")
 
             try:
-                amount = int(input("> "))
+                amount = float(input("> "))
 
                 if amount <= 0:
                     print("The amount has to be greater than 0")
@@ -213,7 +212,7 @@ class WithdrawPrompter(Prompter):
 
             try:
 
-                amount = int(input("> "))
+                amount = float(input("> "))
 
                 if amount <= 0:
                     print("Your amount has to be greater than 0")
@@ -275,7 +274,7 @@ class TransferPrompter(Prompter):
             if amount == 0:
                 print("How much money do you want to transfer?")
                 try:
-                    amount = int(input("> "))
+                    amount = float(input("> "))
 
                     if amount < 0:
                         print("I see what you did there. The amount cannot be negative")
