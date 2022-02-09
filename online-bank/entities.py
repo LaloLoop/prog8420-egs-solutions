@@ -35,12 +35,18 @@ class Account:
         self.id = account_id
 
     def deposit(self, amount):
+        if amount < 0:
+            return 0
+
         self.balance += amount
+
+        return amount
 
     # 3. Perform Account Withdraws
     # Note 2. Balance negative is unacceptable
     def withdraw(self, amount):
-        if self.balance - amount >= 0:
+
+        if amount > 0 and self.balance - amount >= 0:
             self.balance -= amount
             return amount
 
@@ -48,7 +54,7 @@ class Account:
 
     # 4. Perform Account(s) transfer
     def transfer(self, destination, amount):
-        destination.deposit(self.withdraw(amount))
+        return destination.deposit(self.withdraw(amount))
 
 
 class User:

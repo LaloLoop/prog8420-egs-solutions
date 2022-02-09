@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch, DEFAULT
 from entities import Bank, User, Account
 
 from reducers import main_reducer, user_reducer, bank_reducer, STATE_MAPPING, exit_reducer, account_created, \
-    menu_reducer, error_reducer
+    menu_reducer, error_reducer, SINGLE_ACCOUNT_MENU, MULTIPLE_ACCOUNT_MENU
 
 
 class TestMainReducer(TestCase):
@@ -185,6 +185,108 @@ class TestBankReducer(TestCase):
 
         self.assertEqual({'session': user, 'error': ''}, state)
 
+    def test_transfer(self):
+        user = Mock(spec=User)
+        account1 = Mock(spec=Account)
+        account1.id = 1
+        account1.balance = 100
+
+        account2 = Mock(spec=Account)
+        account2.id = 2
+        account2.balance = 200
+        account2.transfer.return_value = 100
+
+        amount = 100
+
+        user.accounts = [account1, account2]
+
+        state = {
+            'session': user
+        }
+
+        action = {'type': 'account/transfer', 'payload': {'source_acct_id': 2, 'amount': amount, 'dest_acct_id': 1}}
+
+        bank_reducer(state, action)
+
+        account2.transfer.assert_called_with(account1, amount)
+
+    def test_transfer_fails_with_account_not_found(self):
+        user = Mock(spec=User)
+        account1 = Mock(spec=Account)
+        account1.id = 1
+
+        user.accounts = [account1]
+
+        state = {
+            'session': user
+        }
+
+        action = {
+            'type': 'account/transfer',
+            'payload': {'source_acct_id': 2, 'dest_acct_id': 1, 'amount': 100}
+        }
+
+        new_state = bank_reducer(state, action)
+
+        self.assertEqual(new_state, {**state, 'error': 'Could not find source account with id: 2'})
+
+        action = {
+            'type': 'account/transfer',
+            'payload': {
+                'source_acct_id': 1,
+                'dest_acct_id': 2,
+                'amount': 100
+            }
+        }
+
+        new_state = bank_reducer(state, action)
+
+        self.assertEqual(new_state, {**state, 'error': 'Could not find destination account with id: 2'})
+
+    def test_transfer_fails_with_insufficient_funds(self):
+        account1 = Mock(spec=Account)
+        account1.id = 1
+        account1.transfer.return_value = 0
+        account2 = Mock(spec=Account)
+        account2.id = 2
+
+        user = Mock(spec=User)
+        user.accounts = [account1, account2]
+
+        amount = 200
+
+        state = {
+            'session': user
+        }
+
+        action = {
+            'type': 'account/transfer',
+            'payload': {
+                'source_acct_id': 1,
+                'dest_acct_id': 2,
+                'amount': amount
+            }
+        }
+
+        new_state = bank_reducer(state, action)
+
+        self.assertEqual(new_state, {**state, 'error': 'Could not perform transfer, insufficient funds'})
+
+    def test_transfer_fails_with_same_account(self):
+        state = {}
+        action = {
+            'type': 'account/transfer',
+            'payload': {
+                'source_acct_id': 1,
+                'dest_acct_id': 1,
+                'amount': 10
+            }
+        }
+
+        new_state = bank_reducer(state, action)
+
+        self.assertEqual(new_state, {'error': 'Source and destination account must be different'})
+
 
 class TestUserReducer(TestCase):
 
@@ -270,6 +372,10 @@ class TestUIReducers(TestCase):
 
         self.assertEqual(state['error'], 'some descriptive error')
 
+        action = {'type': 'account/transfer'}
+        state = error_reducer(state, action)
+        self.assertEqual(state['error'], 'some descriptive error')
+
         action = {'type': 'another/action'}
         state = error_reducer(state, action)
 
@@ -345,6 +451,22 @@ class TestMenuReducer(TestCase):
             'menu': {}
         }, state)
 
+    def test_menu_disables_on_transfer_info(self):
+        state = {
+            'context': 'multiple_account',
+            'menu': {
+                'some': {}
+            }
+        }
+        action = {'type': 'account/prompt_transfer_info'}
+
+        state = menu_reducer(state, action)
+
+        self.assertEqual({
+            'context': 'prompt_transfer_info',
+            'menu': {}
+        }, state)
+
     def test_menu_no_account_when_user_create(self):
         state = {
             'context': 'missing_user_account',
@@ -367,26 +489,19 @@ class TestMenuReducer(TestCase):
         }, state)
 
     def test_menu_single_account_when_account_create(self):
+        user = Mock(spec=User)
+        account1 = Mock(spec=Account)
+        user.accounts = [account1]
+
         state = {
-            'context': 'no_accounts'
+            'context': 'no_accounts',
+            'session': user
         }
 
         expected_state = {
             'context': 'single_account',
-            'menu': {
-                'deposit': {
-                    'type': 'account/prompt_deposit_info'
-                },
-                'withdraw': {
-                    'type': 'account/prompt_withdraw_info'
-                },
-                'create_account': {
-                    'type': 'account/create'
-                },
-                'exit': {
-                    'type': 'program/terminate'
-                }
-            }
+            'session': user,
+            'menu': SINGLE_ACCOUNT_MENU
         }
 
         action = {'type': 'account/create'}
@@ -400,3 +515,40 @@ class TestMenuReducer(TestCase):
         action = {'type': 'account/withdraw'}
         actual_state = menu_reducer(state, action)
         self.assertEqual(expected_state, actual_state)
+
+    def test_menu_multiple_account_when_account_create(self):
+        user = Mock(spec=User)
+        account1 = Mock(spec=Account)
+        account2 = Mock(spec=Account)
+        user.accounts = [account1, account2]
+
+        state = {
+            'context': 'single_account',
+            'session': user,
+            'menu': SINGLE_ACCOUNT_MENU
+        }
+
+        expected_state = {
+            'context': 'multiple_account',
+            'session': user,
+            'menu': MULTIPLE_ACCOUNT_MENU
+        }
+
+        action = {'type': 'account/create'}
+
+        actual_state = menu_reducer(state, action)
+        self.assertEqual(expected_state, actual_state)
+
+        action = {'type': 'account/transfer'}
+        actual_state = menu_reducer(state, action)
+        self.assertEqual(expected_state, actual_state)
+
+        action = {'type': 'account/deposit'}
+        actual_state = menu_reducer(state, action)
+        self.assertEqual(expected_state, actual_state)
+
+        action = {'type': 'account/withdraw'}
+        actual_state = menu_reducer(state, action)
+        self.assertEqual(expected_state, actual_state)
+
+

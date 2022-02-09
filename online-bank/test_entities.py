@@ -59,9 +59,18 @@ class TestBank(TestCase):
 class TestAccount(TestCase):
     def test_deposit(self):
         account = Account()
-        account.deposit(230)
+        deposited = account.deposit(230)
 
         self.assertEqual(account.balance, 230)
+        self.assertEqual(deposited, 230)
+
+    def test_deposit_cannot_be_negative(self):
+        account = Account()
+        account.balance = 200
+        deposited = account.deposit(-200)
+
+        self.assertEqual(account.balance, 200)
+        self.assertEqual(deposited, 0)
 
     def test_deposit_accumulates(self):
         account = Account()
@@ -78,6 +87,14 @@ class TestAccount(TestCase):
 
         self.assertEqual(account.balance, 50)
 
+    def test_withdraw_cannot_be_negative(self):
+        account = Account(balance=100)
+
+        withdrawn = account.withdraw(-100)
+
+        self.assertEqual(account.balance, 100)
+        self.assertEqual(withdrawn, 0)
+
     def test_withdraw_cannot_leave_negative_balance(self):
         account = Account(balance=200)
 
@@ -89,10 +106,21 @@ class TestAccount(TestCase):
         acct_origin = Account(balance=200)
         acct_destination = Account(balance=100)
 
-        acct_origin.transfer(acct_destination, 200)
+        transferred = acct_origin.transfer(acct_destination, 200)
 
         self.assertEqual(acct_destination.balance, 300)
         self.assertEqual(acct_origin.balance, 0)
+        self.assertEqual(transferred, 200)
+
+    def test_transfer_greater_amount_returns_zero(self):
+        acct_origin = Account(balance=0)
+        acct_destination = Account(balance=0)
+
+        transferred = acct_origin.transfer(acct_destination, 100)
+
+        self.assertEqual(acct_destination.balance, 0)
+        self.assertEqual(acct_origin.balance, 0)
+        self.assertEqual(transferred, 0)
 
 
 class TestUser(TestCase):
