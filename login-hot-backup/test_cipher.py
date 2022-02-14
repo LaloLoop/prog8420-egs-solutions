@@ -8,7 +8,7 @@ class TestPasswordCipher(TestCase):
     def test_cipher(self):
         cipher = PasswordCipher()
 
-        password = 'SOM3P4S5'
+        password = 'MARCOS442021'
         ciphered_pass = cipher.cipher(password)
 
-        self.assertIsNotNone(ciphered_pass)
+        self.assertEqual('CTLMHP557978', ciphered_pass)
