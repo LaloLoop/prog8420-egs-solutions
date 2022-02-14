@@ -1,15 +1,12 @@
 from controller import Controller
-from views import MenuView
+from views import MainView
 
 
 class App:
 
-    def __init__(self, view=None, controller=Controller()):
-        if view is None:
-            view = MenuView(controller)
-
-        self._view = view
-        self._controller = controller
+    def __init__(self):
+        self._controller = Controller()
+        self._view = MainView(self._controller)
 
     def run(self):
         while self._controller.is_running():

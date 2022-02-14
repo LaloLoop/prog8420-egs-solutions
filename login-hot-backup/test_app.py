@@ -1,20 +1,21 @@
 from unittest import TestCase
-from unittest.mock import Mock
+from unittest.mock import Mock, patch, DEFAULT
 
 from app import App
 
 
 class TestApp(TestCase):
 
-    def test_app_is_running(self):
-        controller = Mock()
-        view = Mock()
+    @patch.multiple('app', MainView=DEFAULT, Controller=DEFAULT)
+    def test_app_is_running(self, MainView, Controller):
+        controller = Controller.return_value
+        view = MainView.return_value
 
         state = Mock()
         controller.is_running.side_effect = [True, False]
         controller.get_state.return_value = state
 
-        app = App(view, controller)
+        app = App()
 
         exit_code = app.run()
 
