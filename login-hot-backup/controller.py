@@ -1,3 +1,7 @@
+from cipher import PasswordCipher
+from repository import DBRepository
+
+
 class Controller:
 
     def __init__(self):
@@ -5,6 +9,8 @@ class Controller:
         self._state = {
             'context': 'init'
         }
+        self._cipher = PasswordCipher()
+        self._repo = DBRepository()
 
     def is_running(self):
         return self._running
@@ -22,7 +28,12 @@ class Controller:
         }
 
     def create_user(self, email, password):
-        pass
+        ciphered_password = self._cipher.cipher(password)
+        created = self._repo.create_user(email, ciphered_password)
+
+        self._state = {**self._state, 'context': 'init'}
+
+        return created
 
     def login(self):
         pass
