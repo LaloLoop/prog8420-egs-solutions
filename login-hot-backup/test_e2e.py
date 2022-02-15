@@ -7,15 +7,6 @@ import pexpect
 
 
 class TestE2E(TestCase):
-    def test_create_user_with_communicate(self):
-        p = Popen(['python3', 'main.py'], stdout=PIPE, stdin=PIPE, stderr=STDOUT)
-        main_output = p.communicate(input=b"exit\n")[0]
-        print(main_output.decode())
-
-    def test_create_with_run(self):
-        p = run(['python3', 'main.py'], stdout=PIPE, input="exit\n", encoding='ascii')
-        print(p.returncode)
-        print(p.stdout)
 
     def setUp(self) -> None:
         self._cleanup_db()
