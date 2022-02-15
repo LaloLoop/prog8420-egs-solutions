@@ -5,11 +5,14 @@ from unittest import TestCase
 
 import pexpect
 
+from db_asserts import assert_user_record
+
 
 class TestE2E(TestCase):
 
     def setUp(self) -> None:
         self._cleanup_db()
+        self._child = pexpect.spawn('python main.py', timeout=3)
 
     def tearDown(self) -> None:
         self._cleanup_db()
@@ -19,33 +22,56 @@ class TestE2E(TestCase):
         if os.path.exists(db_path):
             os.remove(db_path)
 
-    def test_with_create_with_pexpect(self):
-
-        email = "test@conestoga.ca"
-        password = "MARCOS442021"
-        ciphered_pass = "CTLMHP557978"
-
-        child = pexpect.spawn('python main.py')
+    def _create_user(self, email, password):
+        child = self._child
         child.expect('New user?')
         child.sendline("Y")
         child.expect('email: ')
         child.sendline(email)
         child.expect('password: ')
         child.sendline(password)
-        child.expect('New user?')
-        child.sendline("exit")
 
-        con = sqlite3.connect('./user.db')
-        con.row_factory = sqlite3.Row
-        cur = con.cursor()
+    def _exit(self):
+        self._child.expect('New user?')
+        self._child.sendline("exit")
 
-        cur.execute('SELECT USER_ID, LOGIN, "CRYPTOGRAPHIC PASSWORD", ACCESS_COUNT FROM TB_USER')
+    def test_create_user(self):
+        email = "test@conestoga.ca"
+        password = "MARCOS442021"
+        ciphered_pass = "CTLMHP557978"
 
-        r = cur.fetchone()
+        self._create_user(email, password)
+        self._exit()
 
-        self.assertEqual(1, r['USER_ID'])
-        self.assertEqual(email, r['LOGIN'])
-        self.assertEqual(ciphered_pass, r["CRYPTOGRAPHIC PASSWORD"])
-        self.assertEqual(0, r['ACCESS_COUNT'])
+        assert_user_record(email, ciphered_pass)
 
-        con.close()
+    def test_login(self):
+        email = 'lalo@conestoga.ca'
+        password = 'MY5UP3RP455'
+
+        self._create_user(email, password)
+
+        child = self._child
+
+        for i in range(1, 3):
+            child.expect('New user?')
+            child.sendline("N")
+            child.expect('email: ')
+            child.sendline(email)
+            child.expect('password: ')
+            child.sendline(password)
+            child.expect(f"{email} has logged in {i} time\(s\)")
+
+        self._exit()
+
+        child.wait()
+
+        assert not child.isalive()
+
+        child.close()
+
+        self.assertEqual(0, child.exitstatus)
+
+        assert_user_record(email, 'CY4UJ6LJ544', access_count=2)
+
+

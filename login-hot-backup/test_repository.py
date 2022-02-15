@@ -2,68 +2,82 @@ import sqlite3
 from unittest import TestCase
 from unittest.mock import patch, Mock
 
+from db_asserts import assert_user_record
 from repository import DBRepository
+
+ORIGINAL_CONNECT = sqlite3.connect
+
+
+def create_shared_db_con(*args, **kwargs):
+    return ORIGINAL_CONNECT("file:mem1?mode=memory&cache=shared", uri=True)
 
 
 class TestDBRepository(TestCase):
 
-    def _create_shared_db_con(self):
-        return sqlite3.connect("file:mem1?mode=memory&cache=shared", uri=True)
+    def setUp(self) -> None:
+        self.test_con = create_shared_db_con()
+        connect_patcher = patch('sqlite3.connect', wraps=create_shared_db_con)
+        self.connect_patcher = connect_patcher
 
-    def test_create_tb_user(self):
-        test_con = self._create_shared_db_con()
-        code_con = self._create_shared_db_con()
-        recreate_con = self._create_shared_db_con()
+        self.connect = connect_patcher.start()
 
-        connect_patcher = patch('sqlite3.connect')
-        connect = connect_patcher.start()
-        connect.side_effect = [code_con, recreate_con]
+        self.repo = DBRepository()
 
-        repo = DBRepository()
+    def tearDown(self) -> None:
+        self.connect_patcher.stop()
+        self.test_con.close()
 
-        created = repo.create_tb_user()
+    def _create_db(self):
+        created = self.repo.create_tb_user()
         self.assertTrue(created)
 
-        repo.create_tb_user()
-
-        connect.assert_called_with("user.db")
-
-        cur = test_con.cursor()
-        cur.execute("SELECT sql FROM sqlite_schema WHERE name='TB_USER'")
-        r = cur.fetchone()
-
-        connect_patcher.stop()
-
-        test_con.close()
-
-    def test_create_user(self):
-        test_con = self._create_shared_db_con()
-        test_con.row_factory = sqlite3.Row
-        create_con = self._create_shared_db_con()
-        insert_con = self._create_shared_db_con()
-
-        connect_patcher = patch('sqlite3.connect')
-        connect = connect_patcher.start()
-        # Provide a new connection, since the previous one was closed
-        connect.side_effect = [create_con, insert_con]
-
-        repo = DBRepository()
-        repo.create_tb_user()
-
+    def _create_user(self):
         email = 'some@conestoga.ca'
         password = 'CRYPT0P4SS'
 
-        created = repo.create_user(email, password)
+        created = self.repo.create_user(email, password)
 
         self.assertTrue(created)
 
-        cur = test_con.cursor()
-        cur.execute('SELECT USER_ID, LOGIN, "CRYPTOGRAPHIC PASSWORD", ACCESS_COUNT FROM TB_USER')
+        return (email, password)
+
+    def test_create_tb_user(self):
+        self._create_db()
+
+        self.repo.create_tb_user()
+
+        self.connect.assert_called_with("user.db")
+
+        cur = self.test_con.cursor()
+        cur.execute("SELECT sql FROM sqlite_schema WHERE name='TB_USER'")
         r = cur.fetchone()
 
-        self.assertEqual(1, r['USER_ID'])
-        self.assertEqual(email, r['LOGIN'])
-        self.assertEqual(password, r["CRYPTOGRAPHIC PASSWORD"])
-        self.assertEqual(0, r['ACCESS_COUNT'])
+        self.assertIsNotNone(r)
 
-        test_con.close()
+    def test_create_user(self):
+
+        self._create_db()
+
+        email, password = self._create_user()
+
+        assert_user_record(email, password, con=self.test_con)
+
+    def test_find_user_with_credentials(self):
+
+        self._create_db()
+        email, password = self._create_user()
+
+        user_record = self.repo.find_user_with_credentials(email, password)
+
+        self.assertEqual(email, user_record.email)
+        self.assertEqual(0, user_record.access_count)
+
+    def test_update_access_count(self):
+        self._create_db()
+        email, password = self._create_user()
+
+        updated = self.repo.update_access_count(email, password)
+
+        self.assertTrue(updated)
+
+        assert_user_record(email, password, access_count=1, con=self.test_con)

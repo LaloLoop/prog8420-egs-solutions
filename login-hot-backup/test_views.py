@@ -3,13 +3,13 @@ from unittest.mock import Mock, patch, call, DEFAULT
 
 import views
 from controller import Controller
-from views import MenuView, CreateUserView, MainView, ViewFactory
+from views import MenuView, CreateUserView, MainView, ViewFactory, LoginView
 
 
 class TestMenu(TestCase):
 
     def setUp(self) -> None:
-        self.controller = Mock()
+        self.controller = Mock(spec=Controller)
         self.state = {
             'context': 'init'
         }
@@ -32,7 +32,7 @@ class TestMenu(TestCase):
         self.view.display(self.state)
         self.view.display(self.state)
 
-        self.assertEqual(2, self.controller.login.call_count)
+        self.assertEqual(2, self.controller.prompt_login_info.call_count)
 
     @patch('views.input')
     def test_exit_calls_exit(self, input):
@@ -66,6 +66,43 @@ class TestCreateUserView(TestCase):
         input.assert_has_calls(input_calls)
 
 
+class TestLoginView(TestCase):
+
+    def setUp(self) -> None:
+        self._controller = Mock(spec=Controller)
+
+    @patch('views.CreateUserView')
+    def test_render_subview(self, PromptView):
+        view = LoginView(self._controller)
+        subview = PromptView.return_value
+
+        state = {}
+
+        view.display(state)
+
+        PromptView.assert_called_once_with(view)
+        subview.display.assert_called_once_with(state)
+
+    @patch('views.print')
+    def test_login_called(self, mocked_print):
+        email = 'some@email.com'
+        password = 'MYP455'
+
+        user_record = Mock()
+        user_record.email = email
+        user_record.access_count = 1
+
+        self._controller.login.return_value = user_record
+
+        view = LoginView(self._controller)
+
+        view.create_user(email, password)
+
+        self._controller.login.asser_called_once_with(email, password)
+
+        mocked_print.assert_called_once_with(f"{user_record.email} has logged in {user_record.access_count} time(s)")
+
+
 class TestMainView(TestCase):
 
     @patch('views.ViewFactory', autospec=True)
@@ -92,13 +129,13 @@ class TestViewFactory(TestCase):
         controller = Mock()
         view_mapping = {
             'init': MenuView,
-            'prompt_user_info': CreateUserView
+            'prompt_user_info': CreateUserView,
+            'prompt_login_info': LoginView,
         }
 
         for context, viewClass in view_mapping.items():
             Original = viewClass
             className = 'views.' + viewClass.__name__
-            print(className)
             patcher = patch(className, spec=True)
             MockClass = patcher.start()
 
