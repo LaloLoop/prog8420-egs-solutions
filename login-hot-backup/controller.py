@@ -1,4 +1,5 @@
 from cipher import PasswordCipher
+from exporter import DBExporter
 from repository import DBRepository
 
 
@@ -11,6 +12,7 @@ class Controller:
         }
         self._cipher = PasswordCipher()
         self._repo = DBRepository()
+        self._exporter = DBExporter()
 
     def is_running(self):
         return self._running
@@ -49,6 +51,7 @@ class Controller:
         updated = self._repo.update_access_count(email, ciphered_password)
 
         if updated:
+            self._exporter.export()
             return self._repo.find_user_with_credentials(email, ciphered_password)
 
         return None

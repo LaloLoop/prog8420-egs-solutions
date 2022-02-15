@@ -5,22 +5,27 @@ from unittest import TestCase
 
 import pexpect
 
-from db_asserts import assert_user_record
+from db_asserts import assert_user_record, assert_db_backup
+
+
+def _cleanup_file(db_path):
+    if os.path.exists(db_path):
+        os.remove(db_path)
 
 
 class TestE2E(TestCase):
 
     def setUp(self) -> None:
-        self._cleanup_db()
+        self._files = ["user.db", 'userdb-backup.csv']
+        self._cleanup_files()
         self._child = pexpect.spawn('python main.py', timeout=3)
 
     def tearDown(self) -> None:
-        self._cleanup_db()
+        self._cleanup_files()
 
-    def _cleanup_db(self):
-        db_path = "user.db"
-        if os.path.exists(db_path):
-            os.remove(db_path)
+    def _cleanup_files(self):
+        for path in self._files:
+            _cleanup_file(path)
 
     def _create_user(self, email, password):
         child = self._child
@@ -73,5 +78,7 @@ class TestE2E(TestCase):
         self.assertEqual(0, child.exitstatus)
 
         assert_user_record(email, 'CY4UJ6LJ544', access_count=2)
+
+        assert_db_backup()
 
 

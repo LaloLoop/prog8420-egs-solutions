@@ -31,15 +31,12 @@ class TestDBRepository(TestCase):
         created = self.repo.create_tb_user()
         self.assertTrue(created)
 
-    def _create_user(self):
-        email = 'some@conestoga.ca'
-        password = 'CRYPT0P4SS'
-
+    def _create_user(self, email='some@conestoga.ca', password='CRYPT0P4SS'):
         created = self.repo.create_user(email, password)
 
         self.assertTrue(created)
 
-        return (email, password)
+        return email, password
 
     def test_create_tb_user(self):
         self._create_db()
@@ -55,7 +52,6 @@ class TestDBRepository(TestCase):
         self.assertIsNotNone(r)
 
     def test_create_user(self):
-
         self._create_db()
 
         email, password = self._create_user()
@@ -63,7 +59,6 @@ class TestDBRepository(TestCase):
         assert_user_record(email, password, con=self.test_con)
 
     def test_find_user_with_credentials(self):
-
         self._create_db()
         email, password = self._create_user()
 
@@ -81,3 +76,25 @@ class TestDBRepository(TestCase):
         self.assertTrue(updated)
 
         assert_user_record(email, password, access_count=1, con=self.test_con)
+
+    def test_find_all(self):
+        self._create_db()
+        test_users = [
+            ('user1@test.com', 'ML5ZYJ544'),
+            ('user2@test.com', 'ML5ZY6LJ544')
+        ]
+
+        for tu in test_users:
+            self._create_user(tu[0], tu[1])
+
+        users_it = self.repo.find_all()
+
+        total = 0
+        for i, u in enumerate(users_it):
+            assert i+1 == u[0]
+            assert test_users[i][0] == u[1]
+            assert test_users[i][1] == u[2]
+            assert 0 == u[3]
+            total += 1
+
+        self.assertEqual(len(test_users), total)

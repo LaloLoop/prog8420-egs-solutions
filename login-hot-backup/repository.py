@@ -38,7 +38,7 @@ class DBRepository:
 
         cur.execute('INSERT INTO TB_USER("LOGIN", "CRYPTOGRAPHIC PASSWORD") VALUES (?, ?)', (email, password,))
 
-        inserted = cur.rowcount
+        inserted = cur.rowcount > 0
 
         con.commit()
         con.close()
@@ -77,3 +77,27 @@ class DBRepository:
         con.close()
 
         return updated
+
+    def find_all(self):
+        con = self._get_connection()
+
+        cur = con.cursor()
+
+        cur.execute(
+            'SELECT USER_ID, LOGIN, "CRYPTOGRAPHIC PASSWORD", ACCESS_COUNT FROM TB_USER ORDER BY USER_ID'
+        )
+
+        return result_set_it(con, cur)
+
+
+def result_set_it(con, cur):
+    while True:
+        record = cur.fetchone()
+
+        if record is None:
+            cur.close()
+            con.close()
+            break
+
+        yield record
+

@@ -142,7 +142,7 @@ class TestViewFactory(TestCase):
             view_factory = ViewFactory(controller)
             product_view = view_factory.get_view(context)
 
-            MockClass.assert_called_with(controller)
+            MockClass.assert_any_call(controller)
 
             self.assertIsInstance(product_view, Original)
             patcher.stop()

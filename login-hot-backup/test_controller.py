@@ -59,13 +59,15 @@ class TestController(TestCase):
 
         self.assertEqual({'context': 'init'}, self.controller.get_state())
 
-    @patch.multiple('controller', PasswordCipher=DEFAULT, DBRepository=DEFAULT)
-    def test_login(self, PasswordCipher, DBRepository):
+    @patch.multiple('controller', PasswordCipher=DEFAULT, DBRepository=DEFAULT, DBExporter=DEFAULT)
+    def test_login(self, PasswordCipher, DBRepository, DBExporter):
         cipher = PasswordCipher.return_value
         repo = DBRepository.return_value
+        exporter = DBExporter.return_value
 
         self.controller._cipher = cipher
         self.controller._repo = repo
+        self.controller._exporter = exporter
 
         self.controller._state = {'context': 'prompt_login_info'}
 
@@ -79,6 +81,7 @@ class TestController(TestCase):
 
         cipher.cipher.return_value = ciphered_password
         repo.find_user_with_credentials.return_value = user_record
+        exporter.export.return_value = True
 
         logged_user = self.controller.login(email, password)
 
@@ -87,5 +90,7 @@ class TestController(TestCase):
         cipher.cipher.assert_called_once_with(password)
         repo.update_access_count.assert_called_once_with(email, ciphered_password)
         repo.find_user_with_credentials.assert_called_once_with(email, ciphered_password)
+
+        exporter.export.assert_called_once()
 
         self.assertEqual({'context': 'init'}, self.controller.get_state())
