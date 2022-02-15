@@ -23,6 +23,13 @@ class TestController(TestCase):
         self.controller.prompt_user_info()
         self.assertEqual({'context': 'prompt_user_info'}, self.controller.get_state())
 
+    @patch('controller.DBRepository', autospec=True)
+    def test_init_db(self, repo):
+        self.controller._repo = repo
+        self.controller.init_db()
+
+        repo.create_tb_user.assert_called_once()
+
     @patch.multiple('controller', PasswordCipher=DEFAULT, DBRepository=DEFAULT, autospec=True)
     def test_create_user(self, PasswordCipher, DBRepository):
 

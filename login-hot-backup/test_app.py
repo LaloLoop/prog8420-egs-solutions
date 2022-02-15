@@ -20,5 +20,6 @@ class TestApp(TestCase):
         exit_code = app.run()
 
         self.assertEqual(exit_code, 0)
+        controller.init_db.assert_called()
         controller.get_state.assert_called()
         view.display.assert_called_with(state)

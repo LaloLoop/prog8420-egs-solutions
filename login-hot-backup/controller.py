@@ -37,3 +37,6 @@ class Controller:
 
     def login(self):
         pass
+
+    def init_db(self):
+        self._repo.create_tb_user()

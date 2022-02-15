@@ -9,6 +9,8 @@ class App:
         self._view = MainView(self._controller)
 
     def run(self):
+        self._controller.init_db()
+
         while self._controller.is_running():
             state = self._controller.get_state()
             self._view.display(state)
