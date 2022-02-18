@@ -1,4 +1,4 @@
-from cipher import PasswordCipher
+from cipher import XLSXCipher
 from exporter import DBExporter
 from repository import DBRepository
 
@@ -10,7 +10,7 @@ class Controller:
         self._state = {
             'context': 'init'
         }
-        self._cipher = PasswordCipher()
+        self._cipher = XLSXCipher()
         self._repo = DBRepository()
         self._exporter = DBExporter()
 

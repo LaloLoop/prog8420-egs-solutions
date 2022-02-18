@@ -34,9 +34,9 @@ class TestController(TestCase):
 
         repo.create_tb_user.assert_called_once()
 
-    @patch.multiple('controller', PasswordCipher=DEFAULT, DBRepository=DEFAULT, DBExporter=DEFAULT, autospec=True)
-    def test_create_user(self, PasswordCipher, DBRepository, DBExporter):
-        cipher = PasswordCipher.return_value
+    @patch.multiple('controller', XLSXCipher=DEFAULT, DBRepository=DEFAULT, DBExporter=DEFAULT, autospec=True)
+    def test_create_user(self, XLSXCipher, DBRepository, DBExporter):
+        cipher = XLSXCipher.return_value
         repo = DBRepository.return_value
         exporter = DBExporter.return_value
 
@@ -64,9 +64,9 @@ class TestController(TestCase):
 
         self.assertEqual({'context': 'init'}, self.controller.get_state())
 
-    @patch.multiple('controller', PasswordCipher=DEFAULT, DBRepository=DEFAULT, DBExporter=DEFAULT)
-    def test_login(self, PasswordCipher, DBRepository, DBExporter):
-        cipher = PasswordCipher.return_value
+    @patch.multiple('controller', XLSXCipher=DEFAULT, DBRepository=DEFAULT, DBExporter=DEFAULT)
+    def test_login(self, XLSXCipher, DBRepository, DBExporter):
+        cipher = XLSXCipher.return_value
         repo = DBRepository.return_value
         exporter = DBExporter.return_value
 

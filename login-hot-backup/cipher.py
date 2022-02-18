@@ -1,4 +1,6 @@
-DEFAULT_MAPPING = mapping = {
+from xslxparser import XLSXParser
+
+DEFAULT_MAPPING = {
     'A': 'T',
     'B': 'I',
     'C': 'M',
@@ -53,3 +55,14 @@ class PasswordCipher:
 
     def cipher(self, password):
         return "".join([self._do_mapping(c) for c in password])
+
+
+class XLSXCipher(PasswordCipher):
+    def __init__(self, mapping=None):
+        super().__init__(mapping)
+        self._parser = XLSXParser()
+
+        if mapping is None:
+            self._mapping = self._parser.load()
+        else:
+            self._mapping = mapping

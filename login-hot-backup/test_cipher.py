@@ -1,6 +1,7 @@
 from unittest import TestCase
+from unittest.mock import patch
 
-from cipher import PasswordCipher
+from cipher import PasswordCipher, DEFAULT_MAPPING, XLSXCipher
 
 
 class TestPasswordCipher(TestCase):
@@ -20,3 +21,21 @@ class TestPasswordCipher(TestCase):
         cipher_pass = self.cipher.cipher(password)
 
         self.assertEqual('*9**C5**6*', cipher_pass)
+
+
+class TestXLSXCipher(TestCase):
+
+    @patch('cipher.XLSXParser')
+    def test_cipher(self, XLSXParser):
+        parser = XLSXParser.return_value
+
+        parser.load.return_value = {'_': 'C', '*': '0', 'M': 'A'}
+
+        test_password = "_*M"
+
+        cipher = XLSXCipher()
+
+        ciphered_pass = cipher.cipher(test_password)
+
+        parser.load.assert_called_once()
+        self.assertEqual("C0A", ciphered_pass)
