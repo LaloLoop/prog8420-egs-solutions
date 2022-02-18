@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch, call, DEFAULT
 
 import views
 from controller import Controller
-from views import MenuView, CreateUserView, MainView, ViewFactory, LoginView
+from views import MenuView, CreateUserView, CreateValidatedUserView, MainView, ViewFactory, LoginView
 
 
 class TestMenu(TestCase):
@@ -66,12 +66,59 @@ class TestCreateUserView(TestCase):
         input.assert_has_calls(input_calls)
 
 
+class TestValidatedUserView(TestCase):
+
+    def setUp(self):
+        self.controller = Mock(spec=Controller)
+        self.view = CreateValidatedUserView(self.controller)
+
+    @patch.multiple('views', input=DEFAULT, print=DEFAULT)
+    def test_capture_user_info(self, input, print):
+        email = 'eduardo@conestoga.ca'
+        password = 'EXP3CT4DP4SS'
+
+        input.side_effect = ['', 'my_email', email, email,
+                             '', 'my_password', password, password]
+
+        state = {
+            'context': 'prompt_user_info'
+        }
+
+        self.view.display(state)
+
+        input_calls = [
+            call("email: "),
+            # Please provide an email
+            call("email: "),
+            # Please input a valid email
+            call("email: "),
+            call("Please confirm your email: "),
+            call("password: "),
+            # Please provide a password
+            call("password: "),
+            # Password invalid
+            call("password: "),
+            call("Please confirm your password: ")
+        ]
+        input.assert_has_calls(input_calls)
+
+        print_calls = [
+            call('Please provide your email'),
+            call('Please input a valid email, e.g. user@domain.com'),
+            call('Please provide your password'),
+            call('Provide a 4 or more uppercase letters password, no special characters are allowed'),
+        ]
+
+        print.assert_has_calls(print_calls)
+        self.controller.create_user.called_once_with(email, password)
+
+
 class TestLoginView(TestCase):
 
     def setUp(self) -> None:
         self._controller = Mock(spec=Controller)
 
-    @patch('views.CreateUserView')
+    @patch('views.LoginValidatedInputView')
     def test_render_subview(self, PromptView):
         view = LoginView(self._controller)
         subview = PromptView.return_value
@@ -102,6 +149,16 @@ class TestLoginView(TestCase):
 
         mocked_print.assert_called_once_with(f"{user_record.email} has logged in {user_record.access_count} time(s)")
 
+    @patch('views.print')
+    def test_login_nonexistent_user(self, mocked_print):
+        self._controller.login.return_value = None
+
+        view = LoginView(self._controller)
+
+        view.create_user('not@auser.com', 'idontexist')
+
+        mocked_print.assert_called_once_with("User does not exist")
+
 
 class TestMainView(TestCase):
 
@@ -129,7 +186,7 @@ class TestViewFactory(TestCase):
         controller = Mock()
         view_mapping = {
             'init': MenuView,
-            'prompt_user_info': CreateUserView,
+            'prompt_user_info': CreateValidatedUserView,
             'prompt_login_info': LoginView,
         }
 
@@ -146,4 +203,3 @@ class TestViewFactory(TestCase):
 
             self.assertIsInstance(product_view, Original)
             patcher.stop()
-

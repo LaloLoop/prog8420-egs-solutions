@@ -39,6 +39,9 @@ class Controller:
         ciphered_password = self._cipher.cipher(password)
         created = self._repo.create_user(email, ciphered_password)
 
+        if created:
+            self._exporter.export()
+
         self._state = {**self._state, 'context': 'init'}
 
         return created

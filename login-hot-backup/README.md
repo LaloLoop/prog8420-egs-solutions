@@ -37,6 +37,28 @@ If you prefer python in your local machine, it be executed with the following co
 python main.py
 ```
 
+## File paths
+
+The application will write and read the following files, please keep them in that location
+as they are not configurable at the moment.
+
+**Written to project directory**
+* `user.db`: The DB where the users' information is stored
+* `userdb-backup.csv`: The backup of the `user.db`, written to the same directory.
+* `chyper-code.xlsx`: The spreadsheet containing the cypher mapping.
+
+### About cypher mapping
+
+> ⚠️ Keep in mind that changing the contents of the `chyper-code.xlsx` file in an incompatible way, e.g. changing an 
+> existing letter to a new value or deleting it, will cause your existing DB entries to no longer be ciphered 
+> appropriately, and no new access counts will be processed. 
+
+Only the first to columns of the file containing the cipher information are read, these columns
+are meant to have the `USER TYPE` and `SYSTEM CONVERT` columns to support the ciphering.
+
+## TODO
+- [ ] Read cipher info from Excel file.
+
 ## Author
 
 Eduardo Gutiérrez Silva (LaloLoop)

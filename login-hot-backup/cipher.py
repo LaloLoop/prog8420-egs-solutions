@@ -45,5 +45,11 @@ class PasswordCipher:
         else:
             self._mapping = mapping
 
+    def _do_mapping(self, c):
+        if c in self._mapping:
+            return self._mapping[c]
+
+        return '*'
+
     def cipher(self, password):
-        return "".join([self._mapping[c] for c in password])
+        return "".join([self._do_mapping(c) for c in password])

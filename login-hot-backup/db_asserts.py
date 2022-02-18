@@ -1,6 +1,18 @@
 import os
 import sqlite3
 
+TEST_FILES_FOLDER = "./"
+TEST_DB = "user.db"
+BACKUP_FILE = "userdb-backup.csv"
+
+
+def _test_file_path(fpath):
+    return "/".join([TEST_FILES_FOLDER, fpath])
+
+
+TEST_DB_PATH = _test_file_path(TEST_DB)
+TEST_BACKUP_PATH = _test_file_path(BACKUP_FILE)
+
 
 def _get_users_cursor(db_path, con=None):
     if con is None:
@@ -19,7 +31,7 @@ def _assert_row(row, id, email, ciphered_pass, access_count):
     assert access_count == row['ACCESS_COUNT']
 
 
-def assert_user_record(email, ciphered_pass, id=1, access_count=0, db_path='./user.db', con=None):
+def assert_user_record(email, ciphered_pass, id=1, access_count=0, db_path=TEST_DB_PATH, con=None):
     cur = _get_users_cursor(db_path, con)
 
     r = cur.fetchone()
@@ -27,7 +39,18 @@ def assert_user_record(email, ciphered_pass, id=1, access_count=0, db_path='./us
     _assert_row(r, id, email, ciphered_pass, access_count)
 
 
-def assert_db_backup(db_path='./user.db', file_path='./userdb-backup.csv'):
+def assert_empty_db(db_path=TEST_DB_PATH):
+    cur = _get_users_cursor(db_path)
+    assert cur.fetchone() is None
+
+    cur.close()
+
+
+def assert_no_backup(file_path=TEST_BACKUP_PATH):
+    assert not os.path.exists(file_path)
+
+
+def assert_db_backup(db_path=TEST_DB_PATH, file_path=TEST_BACKUP_PATH):
     assert os.path.exists(file_path)
 
     cur = _get_users_cursor(db_path)
@@ -44,3 +67,4 @@ def assert_db_backup(db_path='./user.db', file_path='./userdb-backup.csv'):
             for i, col in enumerate(cols):
                 assert str(row[i]) == col
 
+    cur.close()

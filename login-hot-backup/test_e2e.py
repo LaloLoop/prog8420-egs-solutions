@@ -1,11 +1,10 @@
 import os.path
-import sqlite3
-from subprocess import Popen, PIPE, STDOUT, run
 from unittest import TestCase
 
 import pexpect
 
-from db_asserts import assert_user_record, assert_db_backup
+from db_asserts import assert_user_record, assert_db_backup, assert_empty_db, assert_no_backup
+from testing_helpers import random_string_from
 
 
 def _cleanup_file(db_path):
@@ -33,7 +32,11 @@ class TestE2E(TestCase):
         child.sendline("Y")
         child.expect('email: ')
         child.sendline(email)
+        child.expect('Please confirm your email: ')
+        child.sendline(email)
         child.expect('password: ')
+        child.sendline(password)
+        child.expect('Please confirm your password: ')
         child.sendline(password)
 
     def _exit(self):
@@ -49,6 +52,65 @@ class TestE2E(TestCase):
         self._exit()
 
         assert_user_record(email, ciphered_pass)
+
+        assert_db_backup()
+
+    def test_create_user_validations(self):
+        valid_email = "lalo@gmail.com"
+        valid_pass = "P4S5W0RD"
+
+        child = self._child
+        child.sendline("Y")
+        child.sendline("")
+        child.expect("Please provide your email")
+        child.sendline(random_string_from(valid_email))
+        child.expect("Please input a valid email, e.g. user@domain.com")
+        child.sendline(valid_email)
+        child.sendline(valid_email)
+        child.sendline("")
+        child.expect("Please provide your password")
+        child.sendline("somP455")
+        child.expect("Provide a 4 or more uppercase letters password, no special characters are allowed")
+        child.sendline(valid_pass)
+        child.sendline(valid_pass)
+
+        self._exit()
+
+    def test_login_validations(self):
+        email = "sam@yahoo.com"
+        password = "54MST0WN"
+
+        self._create_user(email, password)
+
+        child = self._child
+        child.sendline("N")
+        child.sendline("")
+        child.expect("Please provide your email")
+        child.sendline(random_string_from(email))
+        child.expect("Please input a valid email, e.g. user@domain.com")
+        child.sendline(email)
+        child.sendline("")
+        child.expect("Please provide your password")
+        child.sendline(random_string_from(password.lower()))
+        child.expect("Provide a 4 or more uppercase letters password, no special characters are allowed")
+        child.sendline(password)
+
+        self._exit()
+
+    def test_user_doesnt_exist(self):
+        email = "nonexistent@email.com"
+        password = "S0M3P455"
+
+        child = self._child
+        child.sendline("N")
+        child.sendline(email)
+        child.sendline(password)
+        child.expect("User does not exist")
+
+        self._exit()
+
+        assert_empty_db()
+        assert_no_backup()
 
     def test_login(self):
         email = 'lalo@conestoga.ca'
@@ -80,5 +142,3 @@ class TestE2E(TestCase):
         assert_user_record(email, 'CY4UJ6LJ544', access_count=2)
 
         assert_db_backup()
-
-

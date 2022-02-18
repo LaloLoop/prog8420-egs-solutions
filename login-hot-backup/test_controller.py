@@ -34,11 +34,13 @@ class TestController(TestCase):
 
         repo.create_tb_user.assert_called_once()
 
-    @patch.multiple('controller', PasswordCipher=DEFAULT, DBRepository=DEFAULT, autospec=True)
-    def test_create_user(self, PasswordCipher, DBRepository):
+    @patch.multiple('controller', PasswordCipher=DEFAULT, DBRepository=DEFAULT, DBExporter=DEFAULT, autospec=True)
+    def test_create_user(self, PasswordCipher, DBRepository, DBExporter):
         cipher = PasswordCipher.return_value
         repo = DBRepository.return_value
+        exporter = DBExporter.return_value
 
+        self.controller._exporter = exporter
         self.controller._cipher = cipher
         self.controller._repo = repo
         self.controller._state = {'context': 'prompt_user_info'}
@@ -49,6 +51,7 @@ class TestController(TestCase):
 
         cipher.cipher.return_value = ciphered_password
         repo.create_user.return_value = True
+        exporter.export.return_value = True
 
         created = self.controller.create_user(email, password)
 
@@ -56,6 +59,8 @@ class TestController(TestCase):
 
         cipher.cipher.assert_called_once_with(password)
         repo.create_user.assert_called_once_with(email, ciphered_password)
+
+        exporter.export.assert_called_once()
 
         self.assertEqual({'context': 'init'}, self.controller.get_state())
 
@@ -65,9 +70,9 @@ class TestController(TestCase):
         repo = DBRepository.return_value
         exporter = DBExporter.return_value
 
+        self.controller._exporter = exporter
         self.controller._cipher = cipher
         self.controller._repo = repo
-        self.controller._exporter = exporter
 
         self.controller._state = {'context': 'prompt_login_info'}
 
