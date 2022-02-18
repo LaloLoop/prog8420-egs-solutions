@@ -13,6 +13,15 @@ The app has the following features.
 
 The app can be exited from the first menu by writing `exit`.
 
+## Generating sample data
+
+You may generate sample data by running the populatedb.py file, just set your prefered size in the `total_users` 
+variable and it will call the main program to actually do the flows for you.
+
+```shell
+python populatedb.py
+```
+
 ## Running the tests
 
 To run the current tests, execute the following command
