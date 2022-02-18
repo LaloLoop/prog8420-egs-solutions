@@ -65,9 +65,6 @@ as they are not configurable at the moment.
 Only the first to columns of the file containing the cipher information are read, these columns
 are meant to have the `USER TYPE` and `SYSTEM CONVERT` columns to support the ciphering.
 
-## TODO
-- [ ] Read cipher info from Excel file.
-
 ## Author
 
 Eduardo Gutiérrez Silva (LaloLoop)
